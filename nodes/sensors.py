@@ -70,7 +70,7 @@ def main():
         name, topic, TopicType = sensor
         inputs.append(Sensor(registry, name, topic, TopicType))
 
-    rospy.init_node("test_sensors")
+    
 
     for i in inputs:
         i.start()
@@ -80,4 +80,5 @@ def main():
     rospy.signal_shutdown("success")
 
 if __name__ == "__main__":
+    rospy.init_node("test_sensors")
     main()
