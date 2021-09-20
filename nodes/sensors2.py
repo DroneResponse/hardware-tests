@@ -6,10 +6,11 @@ import rospy
 
 from dr_hardware_tests import SensorSynchronizer, SensorData, SensorTest, MAVROS_SENSORS
 
+
 class _SensorDetectionEvents:
     def __init__(self):
         self.detected_types = set()
-    
+
     def next_name(self, name):
         if name not in self.detected_types:
             rospy.loginfo(f"sensor test: detected {name}")
@@ -19,6 +20,7 @@ class _SensorDetectionEvents:
 _detected = _SensorDetectionEvents()
 
 _sensor_names = set(map(lambda x: x.name, MAVROS_SENSORS))
+
 
 def test_recv_all_types(data: SensorData) -> bool:
     a = dataclasses.asdict(data)
@@ -34,6 +36,7 @@ def test_recv_all_types(data: SensorData) -> bool:
     else:
         rospy.logdebug(f"missing sensors: {missing_messages}")
         return False
+
 
 def t():
     synchronizer = SensorSynchronizer()
