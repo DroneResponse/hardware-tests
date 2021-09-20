@@ -53,4 +53,4 @@ def t():
 if __name__ == "__main__":
     rospy.init_node("test_arm")
     t()
-    rospy.signal_shutdown("Sensor test finished")
+    rospy.signal_shutdown("sensor test: finished")
