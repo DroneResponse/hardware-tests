@@ -29,6 +29,7 @@ class SensorMeta:
 @dataclass(frozen=True)
 class SensorData:
     battery: BatteryState = None
+    diagnostics: DiagnosticArray = None
     estimator_status: EstimatorStatus = None
     extended_state: ExtendedState = None
     imu: Imu = None
@@ -151,6 +152,7 @@ class SensorSynchronizer:
 
 MAVROS_SENSORS = {
     SensorMeta("battery", "mavros/battery", BatteryState),
+    SensorMeta("diagnostics", "/diagnostics", DiagnosticArray),
     SensorMeta("estimator_status", "mavros/estimator_status", EstimatorStatus),
     SensorMeta("extended_state", "mavros/extended_state", ExtendedState),
     SensorMeta("imu", "mavros/imu/data", Imu),
