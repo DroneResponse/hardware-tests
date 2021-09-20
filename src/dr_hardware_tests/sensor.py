@@ -5,7 +5,7 @@ from threading import Event, Lock, Thread
 from queue import Queue
 import enum
 import copy
-from typing import Callable
+from typing import Callable, Iterable
 
 from diagnostic_msgs.msg import DiagnosticArray
 from genpy import message
@@ -24,6 +24,18 @@ class SensorMeta:
 
     def make_sub(self, callback) -> rospy.Subscriber:
         return rospy.Subscriber(self.topic, self.TopicType, callback)
+
+MAVROS_SENSORS = {
+    SensorMeta("battery", "mavros/battery", BatteryState),
+    SensorMeta("diagnostics", "/diagnostics", DiagnosticArray),
+    SensorMeta("estimator_status", "mavros/estimator_status", EstimatorStatus),
+    SensorMeta("extended_state", "mavros/extended_state", ExtendedState),
+    SensorMeta("imu", "mavros/imu/data", Imu),
+    SensorMeta("position", "mavros/global_position/global", NavSatFix),
+    SensorMeta("relative_altitude", "mavros/global_position/rel_alt", Float64),
+    SensorMeta("state", "mavros/state", State),
+    SensorMeta("velocity", "mavros/local_position/velocity_local", TwistStamped),
+}
 
 
 @dataclass(frozen=True)
@@ -92,8 +104,11 @@ class SensorSynchronizer:
         self.client_id_lock = Lock()
         self.next_client_id = 0
     
-    def start(self):
+    def start(self, sensors: Iterable[SensorMeta] = MAVROS_SENSORS):
         self.thread.start()
+        for sensor_meta in sensors:
+            sensor_callback = self._make_subscriber_callback(sensor_meta.name)
+            sensor_meta.make_sub(sensor_callback)
     
     def update_sensor_data(self, name, data):
         sensor_data = {}
@@ -148,16 +163,14 @@ class SensorSynchronizer:
             client_id = self.next_client_id
             self.next_client_id += 1
             return _SynchronizerClient(name=client_id, test_func=test_func)
+    
+    def _make_subscriber_callback(self, sensor_name: str):
+        def callback_func(message):
+            self.update_sensor_data(sensor_name, message)
+        return callback_func
 
 
-MAVROS_SENSORS = {
-    SensorMeta("battery", "mavros/battery", BatteryState),
-    SensorMeta("diagnostics", "/diagnostics", DiagnosticArray),
-    SensorMeta("estimator_status", "mavros/estimator_status", EstimatorStatus),
-    SensorMeta("extended_state", "mavros/extended_state", ExtendedState),
-    SensorMeta("imu", "mavros/imu/data", Imu),
-    SensorMeta("position", "mavros/global_position/global", NavSatFix),
-    SensorMeta("relative_altitude", "mavros/global_position/rel_alt", Float64),
-    SensorMeta("state", "mavros/state", State),
-    SensorMeta("velocity", "mavros/local_position/velocity_local", TwistStamped),
-}
+
+
+def get_sensor_synchronizer():
+    pass

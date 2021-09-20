@@ -6,40 +6,45 @@ import rospy
 
 from dr_hardware_tests import SensorSynchronizer, SensorData, SensorTest, MAVROS_SENSORS
 
+class _SensorDetectionEvents:
+    def __init__(self):
+        self.detected_types = set()
+    
+    def next_name(self, name):
+        if name not in self.detected_types:
+            rospy.loginfo(f"sensor test: detected {name}")
+            self.detected_types.add(name)
+
+
+_detected = _SensorDetectionEvents()
+
+_sensor_names = set(map(lambda x: x.name, MAVROS_SENSORS))
 
 def test_recv_all_types(data: SensorData) -> bool:
     a = dataclasses.asdict(data)
-    missing_messages = []
+    missing_messages = set()
     for name, msg in a.items():
         if msg == None:
-            missing_messages.append(name)
-    
+            missing_messages.add(name)
+        else:
+            _detected.next_name(name)
+
     if not missing_messages:
         return True
     else:
-        print(f"missing_messages = {missing_messages}")
+        rospy.logdebug(f"missing sensors: {missing_messages}")
         return False
-
-def make_callback(sensor_name: str, synchronizer: SensorSynchronizer):
-    def callback_func(message):
-        synchronizer.update_sensor_data(sensor_name, message)
-    return callback_func
 
 def t():
     synchronizer = SensorSynchronizer()
     synchronizer.start()
-    subs = []
-    
-    for sensor in MAVROS_SENSORS:
-        cb = make_callback(sensor.name, synchronizer)
-        subs.append(sensor.make_sub(cb))
 
-    print("waiting for messages to populate")
+    rospy.loginfo(f"sensor test: testing if these sensors are available: {_sensor_names}")
     synchronizer.await_condition(test_recv_all_types)
-    print("SUCCESS")
-    rospy.signal_shutdown("SUCCESS")
+    rospy.loginfo("sensor test: SUCCESS")
 
 
 if __name__ == "__main__":
     rospy.init_node("test_arm")
     t()
+    rospy.signal_shutdown("Sensor test successful")
