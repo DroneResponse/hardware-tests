@@ -40,11 +40,14 @@ def t():
     synchronizer.start()
 
     rospy.loginfo(f"sensor test: testing if these sensors are available: {_sensor_names}")
-    synchronizer.await_condition(test_recv_all_types)
-    rospy.loginfo("sensor test: SUCCESS")
+    try:
+        synchronizer.await_condition(test_recv_all_types, 60)
+        rospy.loginfo("sensor test: SUCCESS")
+    except Exception as e:
+        rospy.logfatal(f"{type(e).__name__} {e}")
 
 
 if __name__ == "__main__":
     rospy.init_node("test_arm")
     t()
-    rospy.signal_shutdown("Sensor test successful")
+    rospy.signal_shutdown("Sensor test finished")

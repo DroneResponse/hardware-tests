@@ -2,7 +2,7 @@ from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 import dataclasses
 from threading import Event, Lock, Thread
-from queue import Queue
+from queue import Empty, Queue
 import enum
 import copy
 from typing import Callable, Iterable
@@ -116,15 +116,18 @@ class SensorSynchronizer:
         message = _Message(flag=_MessageFlag.NEW_SENSOR_DATA, new_data=sensor_data)
         self._queue.put(message)
     
-    def await_condition(self, func: SensorTest):
+    def await_condition(self, func: SensorTest, timeout=None):
         """block until func returns True or rospy tries to shutdown
         """
         client = self._make_client(func)
         message = _Message(flag=_MessageFlag.NEW_CLIENT, client=client)
         self._queue.put(message)
-        result: _ClientReturnMessage = client.return_channel.get()
-        if result == _ClientReturnMessage.EXIT:
-            raise RospyShutdownException()
+        try:
+            result: _ClientReturnMessage = client.return_channel.get(timeout=timeout)
+            if result == _ClientReturnMessage.EXIT:
+                raise RospyShutdownException()
+        except Empty:
+            raise TimeoutError("sensor test timeout. The condition was never met")
     
     def _run(self):
         rospy.on_shutdown(self._on_shutdown)
@@ -154,7 +157,11 @@ class SensorSynchronizer:
             self._check_client(client)
     
     def _check_client(self, client: _SynchronizerClient):
-        if client.test_func(self.data):
+        try:
+            test_result = client.test_func(self.data)
+        except Exception as e:
+            rospy.logwarn(f"SensorSynchronizer client function raised {e}")
+        if test_result:
             client.return_channel.put(_ClientReturnMessage.SUCCESS)
             del self.clients[client.name]
     
