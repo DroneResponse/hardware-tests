@@ -65,6 +65,7 @@ class _MessageFlag(enum.Enum):
     EXIT = enum.auto()
     NEW_SENSOR_DATA = enum.auto()
     NEW_CLIENT = enum.auto()
+    DATA_REQUEST = enum.auto()
 
 
 @dataclass
@@ -79,6 +80,7 @@ class _Message:
     flag: _MessageFlag
     new_data: Mapping = None
     client: _SynchronizerClient = None
+    data_channel: Queue = None
 
 
 class _ClientReturnMessage(enum.Enum):
@@ -117,6 +119,12 @@ class SensorSynchronizer:
         message = _Message(flag=_MessageFlag.NEW_SENSOR_DATA,
                            new_data=sensor_data)
         self._queue.put(message)
+    
+    def sensor_data(self) -> SensorData:
+        data_channel = Queue()
+        message = _Message(flag=_MessageFlag.DATA_REQUEST, data_channel=data_channel)
+        self._queue.put(message)
+        return data_channel.get()
 
     def await_condition(self, func: SensorTest, timeout=None):
         """block until func returns True or rospy tries to shutdown
@@ -148,6 +156,9 @@ class SensorSynchronizer:
                 for client in self.clients.values():
                     client.return_channel.put(_ClientReturnMessage.EXIT)
                 self.clients.clear()
+            elif message.flag == _MessageFlag.DATA_REQUEST:
+                result = copy.copy(self.data)
+                message.data_channel.put(result)
 
     def _on_shutdown(self):
         self._is_shutdown.set()

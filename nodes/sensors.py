@@ -38,7 +38,7 @@ def test_recv_all_types(data: SensorData) -> bool:
         return False
 
 
-def t():
+def main():
     synchronizer = SensorSynchronizer()
     synchronizer.start()
 
@@ -52,5 +52,5 @@ def t():
 
 if __name__ == "__main__":
     rospy.init_node("test_arm")
-    t()
+    main()
     rospy.signal_shutdown("sensor test: finished")
