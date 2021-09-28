@@ -30,20 +30,21 @@ def is_takeoff_alt_reached(data: SensorData):
 def is_loiter_mode(data: SensorData):
     return data.state.mode == FlightMode.LOITER.value
 
-def make_is_drone_at_target_func(target_wgs84: Lla, threshold_distance_meters: float = 2.0):
+
+def make_is_drone_at_target_func(target_wgs84: Lla,
+                                 threshold_distance_meters: float = 2.0):
     def is_arrived(data: SensorData):
         lat = data.position.latitude
         lon = data.position.longitude
         alt = data.position.altitude
         current_pos = Lla(lat, lon, alt)
         return current_pos.distance(target_wgs84) < threshold_distance_meters
-    
+
     return is_arrived
 
 
-# this constant comes from
-# http://docs.ros.org/en/api/mavros_msgs/html/msg/ExtendedState.html
-_LANDED_STATE_ON_GROUND = 1
-
 def is_on_ground(data: SensorData):
+    # this constant comes from
+    # http://docs.ros.org/en/api/mavros_msgs/html/msg/ExtendedState.html
+    _LANDED_STATE_ON_GROUND = 1
     return data.extended_state.landed_state == _LANDED_STATE_ON_GROUND

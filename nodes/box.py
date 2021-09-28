@@ -57,7 +57,9 @@ def ellipsoid_to_amsl(pos: Lla) -> Lla:
     amsl_alt = wgs84_alt - geoid_separation
     return Lla(pos.latitude, pos.longitude, amsl_alt)
 
-def fly_waypoints(drone: Drone, sensors: SensorSynchronizer, waypoints_wgs84: List[Lla]):
+
+def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
+                  waypoints_wgs84: List[Lla]):
     setpoint_sender: SetpointSender = SetpointSender(drone=drone)
     setpoint_sender.start()
 
@@ -74,6 +76,7 @@ def fly_waypoints(drone: Drone, sensors: SensorSynchronizer, waypoints_wgs84: Li
         setpoint_sender.setpoint = setpoint_lla
 
         sensors.await_condition(is_arrived)
+
 
 def land(drone: Drone, sensors: SensorSynchronizer):
     drone.set_mode(FlightMode.LAND)
