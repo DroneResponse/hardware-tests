@@ -56,6 +56,6 @@ def main():
 
 
 if __name__ == "__main__":
-    rospy.init_node("test_arm")
+    rospy.init_node("test_hover")
     main()
     rospy.signal_shutdown("hover test: finished")
