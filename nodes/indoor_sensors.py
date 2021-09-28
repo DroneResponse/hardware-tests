@@ -7,10 +7,10 @@ import rospy
 from dr_hardware_tests import SensorSynchronizer, SensorData, SensorMeta, MAVROS_SENSORS
 
 
-def is_outdoor_sensor(sensor_meta: SensorMeta):
+def is_indoor_sensor(sensor_meta: SensorMeta):
     return sensor_meta.name != "position" and sensor_meta.name != "relative_altitude"
 
-INDOOR_SENSORS = set(filter(is_outdoor_sensor, MAVROS_SENSORS))
+INDOOR_SENSORS = set(filter(is_indoor_sensor, MAVROS_SENSORS))
 
 class _SensorDetectionEvents:
     def __init__(self):
