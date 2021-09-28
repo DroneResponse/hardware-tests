@@ -64,6 +64,7 @@ class SetpointSender:
             lla = position.to_lla()
         done_event = Event()
         message = _Message(flag=_Flag.SET_SETPOINT, setpoint=lla, done_event=done_event)
+        self._message_queue.put(message)
         done_event.wait()
 
     def _run(self):

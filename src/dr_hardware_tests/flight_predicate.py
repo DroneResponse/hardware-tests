@@ -31,8 +31,8 @@ def is_loiter_mode(data: SensorData):
     return data.state.mode == FlightMode.LOITER.value
 
 
-def make_is_drone_at_target_func(target_wgs84: Lla,
-                                 threshold_distance_meters: float = 2.0):
+def make_func_is_drone_at_target(target_wgs84: Lla,
+                                 threshold_distance_meters: float = 0.25):
     def is_arrived(data: SensorData):
         lat = data.position.latitude
         lon = data.position.longitude
