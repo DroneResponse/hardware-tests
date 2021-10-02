@@ -102,7 +102,8 @@ class Drone:
         msg = ParamValue()
         msg.integer = int(integer_value)
         msg.real = float(real_value)
-        response = self.services['param_set'].call_service(param_id=param_name, value=msg)
+
+        response = self.services['param_set'].call_service(param_name, msg)
         return response.success
 
     def set_mode(self, mode: FlightMode):

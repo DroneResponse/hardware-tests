@@ -21,14 +21,16 @@ def is_disarmed(data: SensorData):
     return not data.state.armed
 
 
-def is_takeoff_alt_reached(data: SensorData):
-    delta_alt = 2.5 - data.relative_altitude.data
-    delta_alt = abs(delta_alt)
-    return delta_alt < 0.25
-
-
 def is_loiter_mode(data: SensorData):
     return data.state.mode == FlightMode.LOITER.value
+
+
+def make_func_is_alt_reached(alt: float, threshold:float=0.25):
+    def is_takeoff_alt_reached(data: SensorData):
+        delta_alt = alt - data.relative_altitude.data
+        delta_alt = abs(delta_alt)
+        return delta_alt < threshold
+    return is_takeoff_alt_reached
 
 
 def make_func_is_drone_at_target(target_wgs84: Lla,

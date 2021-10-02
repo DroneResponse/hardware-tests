@@ -7,7 +7,7 @@ from threading import Condition
 import rospy
 
 from dr_hardware_tests import Drone, FlightMode, SensorSynchronizer, SensorData
-from dr_hardware_tests import is_data_available, is_armed, is_takeoff_alt_reached, is_loiter_mode
+from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, is_on_ground
 
 
@@ -26,20 +26,21 @@ def main():
     rospy.loginfo("hover test: waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
 
-    # rospy.loginfo("hover test: setting takeoff altitude to 3.0 meters")
-    # drone.set_param('MIS_TAKEOFF_ALT', real_value=3.0)
+    rospy.loginfo("hover test: setting takeoff altitude to 7.0 meters")
+    drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
 
     rospy.sleep(1)
     rospy.loginfo("hover test: sending takeoff command")
     drone.set_mode(FlightMode.TAKEOFF)
+    is_takeoff_alt_reached = make_func_is_alt_reached(7.0)
     sensors.await_condition(is_takeoff_alt_reached, 30)
 
     rospy.loginfo("hover test: hover in loiter mode")
     drone.set_mode(FlightMode.LOITER)
     sensors.await_condition(is_loiter_mode, 5)
 
-    rospy.loginfo("hover test: hover for 5 seconds")
-    rospy.sleep(5)
+    rospy.loginfo("hover test: hover for 30 seconds")
+    rospy.sleep(30)
 
     rospy.loginfo("hover test: send land command")
     drone.set_mode(FlightMode.LAND)
