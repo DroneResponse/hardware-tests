@@ -48,7 +48,7 @@ To run the code, in the first temrinal, launch the mavros and ROS master using t
 roslaunch dr_hardware_tests mavros.launch
 
 ```
-The launch file is located under catkin_ws/src/dr_hardware_tests/launch/mavros.launch. The code has been tested using baudrate of 921600 following the instrucitons on this [documentation](https://docs.px4.io/master/en/companion_computer/pixhawk_companion.html). For any other baud rate, the following line in the launch file needs to be modified:
+The launch file is located under catkin_ws/src/dr_hardware_tests/launch/mavros.launch. The code has been tested using baudrate of 921600 following the instructions on this [documentation](https://docs.px4.io/master/en/companion_computer/pixhawk_companion.html). For any other baud rate, the following line in the launch file needs to be modified:
 
 ```bash
 <arg name="fcu_url" default="/dev/ttyUSB0:921600"/>
