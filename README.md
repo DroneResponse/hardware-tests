@@ -36,7 +36,7 @@ The terminal will enter the docker container's work directory which is catkin_ws
 sudo docker exec -it c5b2f3541681 bash
 
 ```
-Then the second terminal will also enter to the same docker container. **/dev/ttyUSB0 test** is used for serial USB connection. For other types of connection, this is a good [reference](https://mavlink.io/en/mavgen_python/). USB connection can be verified by this command:
+Then the second terminal will also enter the same docker container. **/dev/ttyUSB0 test** is used for serial USB connection. For other types of connection, this is a good [reference](https://mavlink.io/en/mavgen_python/). USB connection can be verified by this command:
 
 ```bash
 ls /dev/ttyUSB*
