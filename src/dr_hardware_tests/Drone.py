@@ -11,8 +11,8 @@ from droneresponse_mathtools import Lla
 
 from geographic_msgs.msg import GeoPoseStamped
 from mavros import mavlink
-from mavros_msgs.msg import GlobalPositionTarget, Mavlink, ParamValue, PositionTarget
-from mavros_msgs.srv import CommandBool, ParamGet, ParamSet, SetMode
+from mavros_msgs.msg import GlobalPositionTarget, Mavlink, ParamValue, PositionTarget, Waypoint
+from mavros_msgs.srv import CommandBool, ParamGet, ParamSet, SetMode, WaypointClear, WaypointPush
 from pymavlink import mavutil
 from pymavlink.dialects.v10 import common
 from std_msgs.msg import Float64
@@ -42,6 +42,8 @@ _MAVROS_SERVICES = {
     ServiceData('param_get', 'mavros/param/get', ParamGet),
     ServiceData('param_set', 'mavros/param/set', ParamSet),
     ServiceData('set_mode', 'mavros/set_mode', SetMode),
+    ServiceData('clear_geofence', 'mavros/geofence/clear', WaypointClear),
+    ServiceData('set_geofence', 'mavros/geofence/push', WaypointPush),
 }
 
 _SERVICE_TIMEOUT = 10.0  # seconds
@@ -113,6 +115,31 @@ class Drone:
         if not isinstance(mode, FlightMode):
             raise TypeError(f"{mode} is not a FlightMode")
         return self.services['set_mode'].call_service(0, mode.value)
+
+    def clear_geofence(self):
+        self.services['clear_geofence'].call_service()
+
+    def set_geofence(self, coordinates):
+        fence_coordinates = []
+
+        for latitude, longitude in coordinates:
+            mission_item = Waypoint()
+            mission_item.frame = mavutil.mavlink.MAV_FRAME_GLOBAL
+            mission_item.command = mavutil.mavlink.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION
+            mission_item.is_current = False
+            mission_item.autocontinue = False
+
+            mission_item.param1 = len(coordinates)
+            mission_item.param2 = 0
+            mission_item.param3 = 0
+            mission_item.param4 = 0
+            mission_item.x_lat = latitude
+            mission_item.y_long = longitude
+            mission_item.z_alt = 0
+
+            fence_coordinates.append(mission_item)
+
+        self.services['set_geofence'].call_service(0, fence_coordinates)
     
     def send_setpoint(self, lla: Lla, yaw=0.0):
         """Send a setpoint command to the flight controller

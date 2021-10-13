@@ -31,6 +31,8 @@ def test_recv_all_types(data: SensorData) -> bool:
         else:
             _detected.next_name(name)
 
+    # Geofence does not need to be checked for this test
+    missing_messages.remove("geofence")
     if not missing_messages:
         return True
     else:
