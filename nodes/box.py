@@ -9,7 +9,7 @@ from droneresponse_mathtools import Lla, geoid_height
 
 from dr_hardware_tests import Drone, SensorSynchronizer, SetpointSender
 from dr_hardware_tests import FlightMode, SensorData
-from dr_hardware_tests import is_data_available, is_armed, is_takeoff_alt_reached, is_loiter_mode
+from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, make_func_is_drone_at_target, is_on_ground
 
 def log(msg):
@@ -25,9 +25,13 @@ def arm(drone: Drone, sensors: SensorSynchronizer):
 
 def takeoff(drone: Drone, sensors: SensorSynchronizer):
     # rospy.sleep(1)
+    
+    drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
     log("switching to takeoff mode")
     drone.set_mode(FlightMode.TAKEOFF)
     log("waiting for drone to reach alt")
+
+    is_takeoff_alt_reached = make_func_is_alt_reached(7.0)
     sensors.await_condition(is_takeoff_alt_reached, 30)
     log("takeoff complete")
 
