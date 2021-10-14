@@ -9,6 +9,7 @@ import rospy
 from dr_hardware_tests import Drone, FlightMode, SensorSynchronizer
 from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, is_on_ground
+from dr_hardware_tests import start_RC_failsafe_watchdog
 
 
 def log(msg):
@@ -20,6 +21,7 @@ def main():
     drone.start()
     sensors = SensorSynchronizer()
     sensors.start()
+    start_RC_failsafe_watchdog(sensors)
 
     log("waiting for sensor data to come online")
     sensors.await_condition(is_data_available, 30)
@@ -33,7 +35,6 @@ def main():
     log("setting takeoff altitude to 7.0 meters")
     drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
 
-    rospy.sleep(1)
     log("sending takeoff command")
     drone.set_mode(FlightMode.TAKEOFF)
     is_takeoff_alt_reached = make_func_is_alt_reached(7.0)
