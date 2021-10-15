@@ -2,7 +2,7 @@
 from threading import Condition
 import rospy
 
-from dr_hardware_tests import Drone, SensorSynchronizer, SensorData
+from dr_hardware_tests import Drone, SensorSynchronizer, SensorData, sleep
 
 
 def is_armed(data: SensorData):
@@ -29,7 +29,7 @@ def main():
     sensors.await_condition(is_armed, 30)
 
     # Stay armed for some time
-    rospy.sleep(1.0)
+    sleep(1.0)
 
     rospy.loginfo("arming test: sending disarm command")
     drone.disarm()

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-
-import dataclasses
-from threading import Condition
 from typing import List
 import rospy
 
@@ -11,9 +8,12 @@ from dr_hardware_tests import Drone, SensorSynchronizer, SetpointSender
 from dr_hardware_tests import FlightMode, SensorData
 from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, make_func_is_drone_at_target, is_on_ground
+from dr_hardware_tests import sleep
+
 
 def log(msg):
     rospy.loginfo(f"box test: {msg}")
+
 
 def arm(drone: Drone, sensors: SensorSynchronizer):
     log("sending arm command")
@@ -25,7 +25,7 @@ def arm(drone: Drone, sensors: SensorSynchronizer):
 
 def takeoff(drone: Drone, sensors: SensorSynchronizer):
     # rospy.sleep(1)
-    
+
     drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
     log("switching to takeoff mode")
     drone.set_mode(FlightMode.TAKEOFF)
@@ -64,7 +64,7 @@ def find_waypoints(drone: Drone, sensors: SensorSynchronizer, alt: float):
     current_pos = read_lla(sensor_data)
     center = current_pos.move_ned(0.0, -15.0, 0.0)
 
-    waypoints =  find_waypoints_pure(center, rel_alt, alt)
+    waypoints = find_waypoints_pure(center, rel_alt, alt)
     waypoints.append(current_pos)
 
     log_message = [str(wp) for wp in waypoints]
@@ -94,10 +94,13 @@ def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
     log("setting inital setpoint")
     setpoint_sender.setpoint = ellipsoid_to_amsl(waypoints_wgs84[0])
     log("sleeping for 5 seconds")
-    rospy.sleep(5)
+    sleep(5)
     log("switching to offboard mode")
     drone.set_mode(FlightMode.OFFBOARD)
-    waypoint_names = ["square center", "north", "east", "south", "west", "north", "square center", "home"]
+    waypoint_names = [
+        "square center", "north", "east", "south", "west", "north",
+        "square center", "home"
+    ]
     for i in range(len(waypoints_wgs84)):
         target_lla = waypoints_wgs84[i]
         is_arrived = make_func_is_drone_at_target(target_lla)
@@ -139,6 +142,7 @@ def main():
     sensors.await_condition(is_disarmed, 30)
 
     rospy.loginfo("box test: SUCCESS")
+
 
 if __name__ == "__main__":
     rospy.init_node("test_fly_box")
