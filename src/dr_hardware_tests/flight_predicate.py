@@ -2,7 +2,6 @@ import dataclasses
 
 from droneresponse_mathtools import Lla
 
-import rospy
 from .Drone import FlightMode
 from .sensor import SensorData
 
