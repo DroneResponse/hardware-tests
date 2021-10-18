@@ -9,6 +9,8 @@ from .sensor import SensorData
 
 def is_data_available(data: SensorData) -> bool:
     a = dataclasses.asdict(data)
+    # Geofence not needed to run tests
+    del a["geofence"]
     for _, msg in a.items():
         if msg == None:
             return False
@@ -69,3 +71,30 @@ def is_off_ground(data: SensorData):
     # http://docs.ros.org/en/api/mavros_msgs/html/msg/ExtendedState.html
     _LANDED_STATE_ON_GROUND = 1
     return data.extended_state.landed_state > _LANDED_STATE_ON_GROUND
+
+
+def is_inside_geofence(data: SensorData):
+    geofence = data.geofence
+    coordinates = [(w.x_lat, w.y_long) for w in geofence.waypoints]
+    pos = data.position
+    return inside_polygon(len(coordinates), coordinates, (pos.latitude, pos.longitude))
+
+
+def inside_polygon(num_vertices: int, polygon, location):
+    test_lat, test_lon = location
+    inside = False
+    i = 0
+    j = num_vertices - 1
+    lat = [p[0] for p in polygon]
+    lon = [p[1] for p in polygon]
+    while i < num_vertices:
+        if ((lat[i] > test_lat) != (lat[j] > test_lat)) and (
+            test_lon < (lon[j] - lon[i]) * (test_lat - lat[i]) / (lat[j] - lat[i]) + lon[i]
+        ):
+
+            inside = not inside
+        j = i
+        i += 1
+
+    return inside
+

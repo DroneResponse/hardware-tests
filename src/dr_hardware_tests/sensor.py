@@ -10,7 +10,7 @@ import sys
 
 from diagnostic_msgs.msg import DiagnosticArray
 from genpy import message
-from mavros_msgs.msg import EstimatorStatus, ExtendedState, State
+from mavros_msgs.msg import EstimatorStatus, ExtendedState, State, WaypointList
 import rospy
 from rospy import client
 from sensor_msgs.msg import BatteryState, NavSatFix, Imu
@@ -38,6 +38,7 @@ MAVROS_SENSORS = {
     SensorMeta("relative_altitude", "mavros/global_position/rel_alt", Float64),
     SensorMeta("state", "mavros/state", State),
     SensorMeta("velocity", "mavros/local_position/velocity_local", TwistStamped),
+    SensorMeta("geofence", "mavros/geofence/waypoints", WaypointList),
 }
 
 
@@ -52,6 +53,7 @@ class SensorData:
     relative_altitude: Float64 = None
     state: State = None
     velocity: TwistStamped = None
+    geofence: WaypointList = None
 
 
 SensorTest = Callable[[SensorData], bool]
