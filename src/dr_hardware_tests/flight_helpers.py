@@ -1,6 +1,8 @@
 from threading import Event, Lock, Thread
 import time
 import sys
+from typing import Tuple
+from dr_hardware_tests.Drone import Drone
 
 import rospy
 
@@ -20,6 +22,21 @@ def _quit_on_pos_ctl(sensors: SensorSynchronizer):
         return
     rospy.logfatal("Humans have taken control of the drone")
     rospy.signal_shutdown("Humans control the drone")
+
+
+def start_drone_io() -> Tuple[Drone, SensorSynchronizer]:
+    """Create the objects needed to interact with the drone.
+
+    This creates and starts a Drone object that you can use to control the drone.
+    This also creates a sensor synchronizer that lets you access sensor data.
+
+    Returns a tuple holding the drone and sensor synchronizer (in that order)
+    """
+    drone: Drone = Drone()
+    drone.start()
+    sensors: SensorSynchronizer = SensorSynchronizer()
+    sensors.start()
+    return drone, sensors
 
 
 def start_RC_failsafe_watchdog(sensors: SensorSynchronizer):
