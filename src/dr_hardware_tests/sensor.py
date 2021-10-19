@@ -96,7 +96,7 @@ class AtomicCounter:
     def __init__(self):
         self.lock = Lock()
         self._next = 0
-    
+
     def next(self):
         with self.lock:
             result = self._next
@@ -138,7 +138,7 @@ class SensorSynchronizer:
         message = _Message(flag=_MessageFlag.NEW_SENSOR_DATA,
                            new_data=sensor_data)
         self._queue.put(message)
-    
+
     def sensor_data(self) -> SensorData:
         data_channel = Queue()
         message = _Message(flag=_MessageFlag.DATA_REQUEST, data_channel=data_channel)
@@ -185,7 +185,7 @@ class SensorSynchronizer:
 
     def _update(self, **sensor_data):
         self.data = dataclasses.replace(self.data, **sensor_data)
-    
+
     def _update_clients(self):
         all_clients = list(self.clients.values())
         for client in all_clients:
@@ -200,8 +200,6 @@ class SensorSynchronizer:
         if test_result:
             client.return_channel.put(_ClientReturnMessage.SUCCESS)
             del self.clients[client.name]
-
-        
 
     def _make_client(self, test_func: SensorTest) -> _SynchronizerClient:
         client_id = self.client_counter.next()
