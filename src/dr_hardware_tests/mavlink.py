@@ -2,8 +2,6 @@
 import os
 from typing import Union
 
-from mavros import mavlink; os.environ['MAVLINK20'] = '1'
-from pymavlink import mavutil
 from pymavlink.dialects.v10 import common as mavlink1
 from pymavlink.dialects.v20 import common as mavlink2
 
