@@ -131,6 +131,9 @@ def main():
     log("waiting for sensors data")
     sensors.await_condition(is_data_available, 30)
 
+    log("setting preflight parameters")
+    drone.set_preflight_params()
+
     arm(drone, sensors)
     takeoff(drone, sensors)
 
