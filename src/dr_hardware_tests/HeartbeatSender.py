@@ -84,7 +84,7 @@ class HeartbeatSender:
                  component_type: MavType,
                  send_frequency: float = 4.0):
         self.mavlink_sender = mavlink_sender
-        self.component_type = component_type
+        self.component_type = component_type.value
         self._send_frequency = send_frequency
         self._message_queue: Queue = Queue()
         self._stop_event = Event()
@@ -156,7 +156,7 @@ class HeartbeatSender:
             autopilot=mavlink2.MAV_AUTOPILOT_INVALID,
             base_mode=0,
             custom_mode=0,
-            system_status=self._mavstate,
+            system_status=self._mavstate.value,
             mavlink_version=0,
         )
         self.mavlink_sender.send(heartbeat)
