@@ -55,7 +55,7 @@ class SetpointSender:
         result_channel = Queue()
         message = _Message(flag=_Flag.GET_SETPOINT, data_channel=result_channel)
         self._message_queue.put(message)
-        return result_channel.get()
+        return result_channel.get(timeout=1.0)
     
     @setpoint.setter
     def setpoint(self, position: Position):
