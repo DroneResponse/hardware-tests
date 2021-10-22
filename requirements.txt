@@ -1,2 +1,2 @@
-http://docs.q3w.co/droneresponse_mathtools-0.2.1-py2.py3-none-any.whl
-http://docs.q3w.co/pymavlink-2.4.14.tar.gz
+https://mm-public-fileshare.s3.amazonaws.com/droneresponse_mathtools-0.2.1-py2.py3-none-any.whl
+https://mm-public-fileshare.s3.amazonaws.com/pymavlink-2.4.14.tar.gz
