@@ -108,6 +108,8 @@ class Drone:
         self.component_id = mavlink2.MAV_COMP_ID_ONBOARD_COMPUTER
         self.mavlink_sender = MavlinkSender(system_id=self.system_id, component_id=self.component_id, mavlink_pub=self._mavlink_pub)
         self.onboard_heartbeat = HeartbeatSender(self.mavlink_sender, MavType.ONBOARD_CONTROLLER)
+        self._heartbeat_senders.append(self.onboard_heartbeat)
+
     
     def start(self):
         for hb in self._heartbeat_senders:

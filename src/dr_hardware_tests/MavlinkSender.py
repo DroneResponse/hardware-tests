@@ -21,5 +21,8 @@ class MavlinkSender:
         with self.lock:
             msg.pack(self.protocol_handler)
             rosmsg = mavros.mavlink.convert_to_rosmsg(msg)
+            # there is a bug in convert_to_rosmsg where it doesn't set the seq number
+            # this next line is a work around
+            rosmsg.seq = self.protocol_handler.seq
             self.mavlink_pub.publish(rosmsg)
             self.protocol_handler.seq = (self.protocol_handler.seq + 1) % 256
