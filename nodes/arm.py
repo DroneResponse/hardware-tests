@@ -2,7 +2,7 @@
 from threading import Condition
 import rospy
 
-from dr_hardware_tests import Drone, SensorSynchronizer, SensorData, sleep
+from dr_hardware_tests import Drone, SensorSynchronizer, SensorData, flight_helpers, sleep
 
 
 def is_armed(data: SensorData):
@@ -18,9 +18,7 @@ def is_disarmed(data: SensorData):
 
 
 def main():
-    drone = Drone()
-    sensors = SensorSynchronizer()
-    sensors.start()
+    drone, sensors = flight_helpers.start_drone_io()
 
     rospy.loginfo("arming test: sending arm command")
     drone.arm()
