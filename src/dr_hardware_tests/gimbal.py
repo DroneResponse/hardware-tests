@@ -1,8 +1,9 @@
 import enum
 
 from dataclasses import dataclass, field
-from queue import Queue
+from queue import Empty, Queue
 from threading import Thread
+from time import time, sleep
 from typing import Callable, Dict, List, MutableMapping, NoReturn, Tuple, Union, NewType
 
 import mavros.mavlink
@@ -66,7 +67,7 @@ class MavlinkNode:
 @dataclass
 # This class is based on the GIMBAL_MANAGER_INFORMATION message
 # https://mavlink.io/en/messages/common.html#GIMBAL_MANAGER_INFORMATION
-class _GimbalManager:
+class GimbalManager:
     system_id: SystemId
     component_id: ComponentId
     capability_flags: _GimbalManagerCapability # Bitmap of gimbal capability flags.
@@ -77,6 +78,10 @@ class _GimbalManager:
     pitch_max: float # Maximum pitch angle (positive: up, negative: down) in radians
     yaw_min: float # Minimum yaw angle (positive: to the right, negative: to the left) in radians
     yaw_max: float # Maximum yaw angle (positive: to the right, negative: to the left) in radians
+
+    @property
+    def mavlink_node(self) -> MavlinkNode:
+        return MavlinkNode(self.system_id, self.component_id)
 
 
 # GIMBAL_MANAGER_FLAGS
@@ -149,6 +154,7 @@ class _GimbalStatus:
 class _CmdType(enum.Enum):
     EXIT = enum.auto()
     FIND_GIMBALS = enum.auto()
+    GET_GIMBALS = enum.auto()
     RECV_MAVLINK = enum.auto()
     SET_ATTITUDE  = enum.auto()
     TAKE_CONTROL = enum.auto()
@@ -164,6 +170,8 @@ class _Command:
 
     # used for receiving mavlink
     mavlink_message: mavlink2.MAVLink_message = None
+
+    # used for FIND_GIMBALS and GET_GIMBALS
     return_channel: Queue = field(default_factory=Queue)
 
     # used for TAKE_CONTROL command
@@ -180,7 +188,7 @@ class Gimbal:
     def __init__(self, mav_sender: MavlinkSender):
         self.mav_sender = mav_sender
         self.cmd_queue = Queue()
-        self.gimbal_managers: MutableMapping[MavlinkNode, _GimbalManager] = dict()
+        self.gimbal_managers: MutableMapping[MavlinkNode, GimbalManager] = dict()
         self.act
         self.gimbal_manager_status: MutableMapping[MavlinkNode, _GimbalManagerStatus] = dict()
         self.gimbal_status: MutableMapping[MavlinkNode, _GimbalStatus] = dict()
@@ -189,6 +197,7 @@ class Gimbal:
 
         self._cmd_method: Dict[_CmdType, _InternalCmdMethod] = {
             _CmdType.FIND_GIMBALS: self._find_gimbals,
+            _CmdType.GET_GIMBALS: self._get_gimbals,
             _CmdType.RECV_MAVLINK: self._recv_mavlink,
             _CmdType.SET_ATTITUDE: self._set_attitude,
             _CmdType.TAKE_CONTROL: self._take_control,
@@ -202,14 +211,34 @@ class Gimbal:
 
     def start(self):
         self.worker_thread.start()
-    
-    def find_gimbals(self, how_long_to_wait=5):
-        """
-        """
 
+    def find_gimbals(self, wait_time=5) -> List[GimbalManager]:
+        """This method broadcasts a mavlink message that requests all gimbal managers to respond with their details.
+        
+        The wait_time parameter is how long this method will wait responses in seconds. Any responses we receive after this amount of time won't be included in the return value.
+        """
+        cmd = _Command(command_type=_CmdType.FIND_GIMBALS)
+        self.cmd_queue.put(cmd)
+
+        def response_func():
+            sleep(wait_time)
+            gimbals = self.get_gimbals()
+            cmd.return_channel.put(gimbals)
+        
+        response_thread = Thread(target=response_func, daemon=True)
+        response_thread.start()
+        return cmd.return_channel.get(wait_time+1.0)
+
+    def get_gimbals(self) -> List[GimbalManager]:
+        """This method returns the list of gimbal managers we already know about 
+        """
+        cmd = _Command(
+            command_type=_CmdType.GET_GIMBALS
+        )
+        return cmd.return_channel.get(0.75)
 
     def take_control(self,
-                     gimbal_manager: MavlinkNode,
+                     gimbal_manager: Union[MavlinkNode, GimbalManager],
                      gimbal_id: ComponentId,
                      primary_controller: MavlinkNode = None,
                      secondary_controller: MavlinkNode = None):
@@ -219,10 +248,13 @@ class Gimbal:
         If secondary_controller is None, then don't change the secondary controller 
         """
 
+        if type(gimbal_manager) == GimbalManager:
+            gimbal_manager = gimbal_manager.mavlink_node
+
         if primary_controller is None:
             # make this the primary controller
             MavlinkNode(self.mav_sender.system_id, self.mav_sender.component_id)
-        
+
         if secondary_controller is None:
             # -1 means don't change the controller
             secondary_controller = MavlinkNode(-1, -1)
@@ -250,7 +282,7 @@ class Gimbal:
         if mavmsg.get_msgId() in MAVLINK_GIMBAL_MSG_IDS:
             self.cmd_queue.put(mavmsg)
 
-    def _find_gimbals(self):
+    def _find_gimbals(self, cmd: _Command):
         # The protocol for "discovery of gimbal managers" is documented here:
         # https://mavlink.io/en/services/gimbal_v2.html#discovery-of-gimbal-manager
         # In summary, we need to broadcast a command that tells all the gimbal managers we want
@@ -278,6 +310,10 @@ class Gimbal:
             param7=ADDRESS_OF_REQUESTOR # the Response Target
         )
         self.mav_sender.send(request_cmd)
+    
+    def _get_gimbals(self, cmd: _Command):
+        result = list(self.gimbal_managers.values())
+        cmd.return_channel.put(result)
 
     def _recv_mavlink(self, mavmsg: _Command):
         mavmsg: mavlink2.MAVLink_message = mavmsg.mavlink_message
@@ -287,7 +323,7 @@ class Gimbal:
 
     def _recv_gimbal_manager_information(self, msg: mavlink2.MAVLink_gimbal_manager_information_message):
         mavnode = MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
-        gimbal_manager = _GimbalManager(
+        gimbal_manager = GimbalManager(
             system_id=mavnode.system_id,
             component_id=mavnode.component_id,
             capability_flags=_GimbalManagerCapability(msg.cap_flags),
