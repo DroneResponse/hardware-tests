@@ -3,7 +3,7 @@ import enum
 from dataclasses import dataclass, field
 from queue import Queue
 from threading import Thread
-from typing import List, MutableMapping, Tuple, Union
+from typing import Callable, Dict, List, MutableMapping, NoReturn, Tuple, Union, NewType
 
 import mavros.mavlink
 import rospy
@@ -13,32 +13,7 @@ from pymavlink import mavutil
 from pymavlink.dialects.v10 import common as mavlink1
 from pymavlink.dialects.v20 import common as mavlink2
 
-
-_mav1 = mavlink1.MAVLink(file=None)
-_mav2 = mavlink2.MAVLink(file=None)
-
-
-def decode_mavlink1(buff: Union[bytes, bytearray]) -> mavlink1.MAVLink_message:
-    return _mav1.decode(buff)
-
-
-def decode_mavlink2(buff: Union[bytes, bytearray]) -> mavlink2.MAVLink_message:
-    return _mav2.decode(buff)
-
-
-class _CmdType(enum.Enum):
-    EXIT = enum.auto()
-    FIND_GIMBALS = enum.auto()
-    RECV_MAVLINK = enum.auto()
-    SET_ATTITUDE  = enum.auto()
-
-
-@dataclass
-class _GimbalCommand:
-    command_type: _CmdType = None
-    quaternion: Tuple[float, float, float, float] = None
-    mavlink_message: mavlink2.MAVLink_message = None
-    return_channel: Queue = field(default_factory=Queue)    
+from .MavlinkSender import MavlinkSender
 
 
 # The set of mavlink messages we want to receive as input
@@ -57,7 +32,7 @@ MAVLINK_GIMBAL_MSG_IDS = {
 }
 
 
-# This is a python translation of GIMBAL_MANAGER_CAP_FLAGS 
+# This is a python translation of GIMBAL_MANAGER_CAP_FLAGS
 # https://mavlink.io/en/messages/common.html#GIMBAL_MANAGER_CAP_FLAGS
 class _GimbalManagerCapability(enum.Flag):
     GIMBAL_MANAGER_CAP_FLAGS_HAS_RETRACT               = 1 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_RETRACT.
@@ -68,28 +43,40 @@ class _GimbalManagerCapability(enum.Flag):
     GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_AXIS            = 32 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_PITCH_AXIS.
     GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_FOLLOW          = 64 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_PITCH_FOLLOW.
     GIMBAL_MANAGER_CAP_FLAGS_HAS_PITCH_LOCK            = 128 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_PITCH_LOCK.
-    GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_AXIS              = 256 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_YAW_AXIS.  
-    GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_FOLLOW            = 512 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_YAW_FOLLOW.   
+    GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_AXIS              = 256 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_YAW_AXIS.
+    GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_FOLLOW            = 512 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_YAW_FOLLOW.
     GIMBAL_MANAGER_CAP_FLAGS_HAS_YAW_LOCK              = 1024 # Based on GIMBAL_DEVICE_CAP_FLAGS_HAS_YAW_LOCK.
     GIMBAL_MANAGER_CAP_FLAGS_SUPPORTS_INFINITE_YAW     = 2048 # Based on GIMBAL_DEVICE_CAP_FLAGS_SUPPORTS_INFINITE_YAW.
     GIMBAL_MANAGER_CAP_FLAGS_CAN_POINT_LOCATION_LOCAL  = 65536 # Gimbal manager supports to point to a local position.
     GIMBAL_MANAGER_CAP_FLAGS_CAN_POINT_LOCATION_GLOBAL = 131072 # Gimbal manager supports to point to a global latitude, longitude, altitude position.
 
 
+SystemId = NewType('SystemId', int)
+
+
+ComponentId = NewType('ComponentId', int)
+
+
+@dataclass(order=True, frozen=True)
+class MavlinkNode:
+    system_id: SystemId
+    component_id: ComponentId
+
+
 @dataclass
 # This class is based on the GIMBAL_MANAGER_INFORMATION message
 # https://mavlink.io/en/messages/common.html#GIMBAL_MANAGER_INFORMATION
 class _GimbalManager:
-    system_id: int
-    component_id: int
+    system_id: SystemId
+    component_id: ComponentId
     capability_flags: _GimbalManagerCapability # Bitmap of gimbal capability flags.
-    gimbal_device_id: int # Gimbal device ID that this gimbal manager is responsible for.
+    gimbal_device_id: ComponentId # Gimbal device ID that this gimbal manager is responsible for.
     roll_min: float # Minimum hardware roll angle (positive: rolling to the right, negative: rolling to the left) in radians
-    roll_max: float	# Maximum hardware roll angle (positive: rolling to the right, negative: rolling to the left) in radians
-    pitch_min: float	# Minimum pitch angle (positive: up, negative: down) in radians
-    pitch_max: float	# Maximum pitch angle (positive: up, negative: down) in radians
-    yaw_min: float	# Minimum yaw angle (positive: to the right, negative: to the left) in radians
-    yaw_max: float	# Maximum yaw angle (positive: to the right, negative: to the left) in radians
+    roll_max: float # Maximum hardware roll angle (positive: rolling to the right, negative: rolling to the left) in radians
+    pitch_min: float # Minimum pitch angle (positive: up, negative: down) in radians
+    pitch_max: float # Maximum pitch angle (positive: up, negative: down) in radians
+    yaw_min: float # Minimum yaw angle (positive: to the right, negative: to the left) in radians
+    yaw_max: float # Maximum yaw angle (positive: to the right, negative: to the left) in radians
 
 
 # GIMBAL_MANAGER_FLAGS
@@ -104,14 +91,22 @@ class _GimbalManagerFlags(enum.Flag):
 # https://mavlink.io/en/messages/common.html#GIMBAL_MANAGER_STATUS
 @dataclass
 class _GimbalManagerStatus:
-    system_id: int
-    component_id: int
+    system_id: SystemId
+    component_id: ComponentId
     flags: _GimbalManagerFlags # High level gimbal manager flags currently applied.
-    gimbal_device_id: int # Gimbal device ID that this gimbal manager is responsible for.
-    primary_control_sysid: int # System ID of MAVLink component with primary control, 0 for none.
-    primary_control_compid: int # Component ID of MAVLink component with primary control, 0 for none.
-    secondary_control_sysid: int # System ID of MAVLink component with secondary control, 0 for none.
-    secondary_control_compid: int # Component ID of MAVLink component with secondary control, 0 for none.
+    gimbal_device_id: ComponentId # Gimbal device ID that this gimbal manager is responsible for.
+    primary_control_sysid: SystemId # System ID of MAVLink component with primary control, 0 for none.
+    primary_control_compid: ComponentId # Component ID of MAVLink component with primary control, 0 for none.
+    secondary_control_sysid: SystemId # System ID of MAVLink component with secondary control, 0 for none.
+    secondary_control_compid: ComponentId # Component ID of MAVLink component with secondary control, 0 for none.
+
+    @property
+    def primary_controller(self) -> MavlinkNode:
+        return MavlinkNode(self.primary_control_sysid, self.primary_control_compid)
+
+    @property
+    def secondary_controller(self) -> MavlinkNode:
+        return MavlinkNode(self.secondary_control_sysid, self.secondary_control_compid)
 
 
 # This is a python translation of GIMBAL_DEVICE_FLAGS
@@ -141,8 +136,8 @@ class _GimbalDeviceErrorFlags(enum.Flag):
 
 @dataclass
 class _GimbalStatus:
-    system_id: int
-    component_id: int
+    system_id: SystemId
+    component_id: ComponentId
     flags: _GimbalDeviceFlags
     q: Tuple[float, float, float, float]
     angular_velocity_x: float # radians per second
@@ -151,93 +146,114 @@ class _GimbalStatus:
     failure_flags: _GimbalDeviceErrorFlags
 
 
+class _CmdType(enum.Enum):
+    EXIT = enum.auto()
+    FIND_GIMBALS = enum.auto()
+    RECV_MAVLINK = enum.auto()
+    SET_ATTITUDE  = enum.auto()
+    TAKE_CONTROL = enum.auto()
 
-@dataclass(order=True, frozen=True)
-class _MavlinkNode:
-    system_id: int
-    component_id: int
+
+@dataclass
+class _Command:
+    command_type: _CmdType
+
+    # used for SET_ATTITUDE
+    quaternion: Tuple[float, float, float, float] = None
+    gimbal_manager: MavlinkNode = None
+
+    # used for receiving mavlink
+    mavlink_message: mavlink2.MAVLink_message = None
+    return_channel: Queue = field(default_factory=Queue)
+
+    # used for TAKE_CONTROL command
+    primary_controller: MavlinkNode = None
+    secondary_controller: MavlinkNode = None
+    gimbal_device_id: ComponentId = ComponentId(0)
+
+
+_InternalCmdMethod = Callable[[_Command], None]
 
 
 class Gimbal:
 
-    def __init__(self):
+    def __init__(self, mav_sender: MavlinkSender):
+        self.mav_sender = mav_sender
         self.cmd_queue = Queue()
+        self.gimbal_managers: MutableMapping[MavlinkNode, _GimbalManager] = dict()
+        self.act
+        self.gimbal_manager_status: MutableMapping[MavlinkNode, _GimbalManagerStatus] = dict()
+        self.gimbal_status: MutableMapping[MavlinkNode, _GimbalStatus] = dict()
 
-        self.gimbal_managers: MutableMapping[_MavlinkNode, _GimbalManager] = dict()
-        self.gimbal_manager_status: MutableMapping[_MavlinkNode, _GimbalManagerStatus] = dict()
-        self.gimbal_status: MutableMapping[_MavlinkNode, _GimbalStatus] = dict()
-
-        self.mavlink_pub: rospy.Publisher = None
-        self.mavlink_sub: rospy.Subscriber = None
         self.worker_thread = Thread(target=self._run)
 
-        self._mav_msg_dispatch = {
+        self._cmd_method: Dict[_CmdType, _InternalCmdMethod] = {
+            _CmdType.FIND_GIMBALS: self._find_gimbals,
+            _CmdType.RECV_MAVLINK: self._recv_mavlink,
+            _CmdType.SET_ATTITUDE: self._set_attitude,
+            _CmdType.TAKE_CONTROL: self._take_control,
+        }
+
+        self._recv_mavlink_method = {
             mavlink2.MAVLINK_MSG_ID_GIMBAL_MANAGER_INFORMATION: self._recv_gimbal_manager_information,
             mavlink2.MAVLINK_MSG_ID_GIMBAL_MANAGER_STATUS: self._recv_gimbal_manager_status,
             mavlink2.MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS: self._recv_gimbal_device_attitude_status,
         }
 
-    def _recv_gimbal_manager_information(self, msg: mavlink2.MAVLink_gimbal_manager_information_message):
-        mavnode = _MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
-        gimbal_manager = _GimbalManager(
-            system_id=mavnode.system_id,
-            component_id=mavnode.component_id,
-            capability_flags=_GimbalManagerCapability(msg.cap_flags),
-            gimbal_device_id=msg.gimbal_device_id,
-            roll_min=msg.roll_min,
-            roll_max=msg.roll_max,
-            pitch_min=msg.pitch_min,
-            pitch_max=msg.pitch_max,
-            yaw_min=msg.yaw_min,
-            yaw_max=msg.yaw_max,
-        )
-        self.gimbal_managers[mavnode] = gimbal_manager
-
-    def _recv_gimbal_manager_status(self, msg: mavlink2.MAVLink_gimbal_manager_status_message):
-        mavnode = _MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
-        manager_status = _GimbalManagerStatus(
-            system_id=mavnode.system_id,
-            component_id=mavnode.component_id,
-            flags=_GimbalManagerFlags(msg.flags),
-            gimbal_device_id=msg.gimbal_device_id,
-            primary_control_sysid=msg.primary_control_sysid,
-            primary_control_compid=msg.primary_control_compid,
-            secondary_control_sysid=msg.secondary_control_sysid,
-            secondary_control_compid=msg.secondary_control_compid,
-        )
-        self.gimbal_manager_status[mavnode] = manager_status
-
-    def _recv_gimbal_device_attitude_status(self, msg: mavlink2.MAVLink_gimbal_device_attitude_status_message):
-        mavnode = _MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
-        gimbal_status = _GimbalStatus(
-            system_id=mavnode.system_id,
-            component_id=mavnode.component_id,
-            flags=_GimbalDeviceFlags(msg.flags),
-            q=(msg.q[0], msg.q[1], msg.q[2], msg.q[3]),
-            angular_velocity_x=msg.angular_velocity_x,
-            angular_velocity_y=msg.angular_velocity_y,
-            angular_velocity_z=msg.angular_velocity_z,
-            failure_flags=_GimbalDeviceErrorFlags(msg.failure_flags)
-        )
-        self.gimbal_status[mavnode] = gimbal_status
-
-
     def start(self):
-        self.mavlink_pub: rospy.Publisher = rospy.Publisher("mavlink/to", Mavlink, queue_size=1)
-        self.mavlink_sub: rospy.Subscriber = rospy.Subscriber(self.topic, self.TopicType, self._mavlink_sub_callback)
         self.worker_thread.start()
+    
+    def find_gimbals(self, how_long_to_wait=5):
+        """
+        """
+
+
+    def take_control(self,
+                     gimbal_manager: MavlinkNode,
+                     gimbal_id: ComponentId,
+                     primary_controller: MavlinkNode = None,
+                     secondary_controller: MavlinkNode = None):
+        """Tell the gimbal manager which mavlink node has primary control and which has secondary control.
+
+        If primary_controller is set to None, then this object takes primary control.
+        If secondary_controller is None, then don't change the secondary controller 
+        """
+
+        if primary_controller is None:
+            # make this the primary controller
+            MavlinkNode(self.mav_sender.system_id, self.mav_sender.component_id)
+        
+        if secondary_controller is None:
+            # -1 means don't change the controller
+            secondary_controller = MavlinkNode(-1, -1)
+
+        cmd = _Command(gimbal_manager=gimbal_manager,
+                       command_type=_CmdType.TAKE_CONTROL,
+                       primary_controller=primary_controller,
+                       secondary_controller=secondary_controller,
+                       gimbal_device_id=gimbal_id)
+        self.cmd_queue.put(cmd)
+
+    def _run(self):
+        while not rospy.is_shutdown():
+            cmd: _Command = self.cmd_queue.get()
+            if cmd.command_type == _CmdType.EXIT:
+                return
+
+            method = self._cmd_method[cmd.command_type]
+            method(cmd)
 
     def _mavlink_sub_callback(self, msg):
         msg_bytes: bytearray = mavros.mavlink.convert_to_bytes(msg)
-        mavmsg = decode_mavlink2(msg_bytes)
+        mavmsg = self._mav2.decode(msg_bytes)
         # If we're receiving a message that we care about for to gimbal operations
         if mavmsg.get_msgId() in MAVLINK_GIMBAL_MSG_IDS:
             self.cmd_queue.put(mavmsg)
-    
+
     def _find_gimbals(self):
         # The protocol for "discovery of gimbal managers" is documented here:
         # https://mavlink.io/en/services/gimbal_v2.html#discovery-of-gimbal-manager
-        # In summary, we need to broadcast a command that tells all the gimbal managers we want 
+        # In summary, we need to broadcast a command that tells all the gimbal managers we want
         # information. The gimbal managers respond so we can know their component IDs and
         # capabilities.
 
@@ -261,34 +277,80 @@ class Gimbal:
             param6=0,
             param7=ADDRESS_OF_REQUESTOR # the Response Target
         )
+        self.mav_sender.send(request_cmd)
 
-        request_cmd.pack(mavutil.mavlink.MAVLink("", 2, 1))
-        ros_msg = mavros.mavlink.convert_to_rosmsg(request_cmd)
-        self.mavlink_pub.publish(ros_msg)
-    
-    def _recv_mavlink(self, msg: mavlink2.MAVLink_message):
-        msg_id = msg.get_msgId()
-        recv_method = self._mav_msg_dispatch[msg_id]
-        recv_method(msg)
-    
-    def _run(self):
-        while not rospy.is_shutdown():
-            cmd: _GimbalCommand = self.cmd_queue.get()
-            if cmd.command_type == _CmdType.EXIT:
-                return
-            elif cmd.command_type == _CmdType.FIND_GIMBALS:
-                self._find_gimbals()
-            elif cmd.command_type == _CmdType.RECV_MAVLINK:
-                self._recv_mavlink()
+    def _recv_mavlink(self, mavmsg: _Command):
+        mavmsg: mavlink2.MAVLink_message = mavmsg.mavlink_message
+        msg_id = mavmsg.get_msgId()
+        recv_method = self._recv_mavlink_method[msg_id]
+        recv_method(mavmsg)
+
+    def _recv_gimbal_manager_information(self, msg: mavlink2.MAVLink_gimbal_manager_information_message):
+        mavnode = MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
+        gimbal_manager = _GimbalManager(
+            system_id=mavnode.system_id,
+            component_id=mavnode.component_id,
+            capability_flags=_GimbalManagerCapability(msg.cap_flags),
+            gimbal_device_id=msg.gimbal_device_id,
+            roll_min=msg.roll_min,
+            roll_max=msg.roll_max,
+            pitch_min=msg.pitch_min,
+            pitch_max=msg.pitch_max,
+            yaw_min=msg.yaw_min,
+            yaw_max=msg.yaw_max,
+        )
+        self.gimbal_managers[mavnode] = gimbal_manager
+
+    def _recv_gimbal_manager_status(self, msg: mavlink2.MAVLink_gimbal_manager_status_message):
+        mavnode = MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
+        manager_status = _GimbalManagerStatus(
+            system_id=mavnode.system_id,
+            component_id=mavnode.component_id,
+            flags=_GimbalManagerFlags(msg.flags),
+            gimbal_device_id=msg.gimbal_device_id,
+            primary_control_sysid=msg.primary_control_sysid,
+            primary_control_compid=msg.primary_control_compid,
+            secondary_control_sysid=msg.secondary_control_sysid,
+            secondary_control_compid=msg.secondary_control_compid,
+        )
+        self.gimbal_manager_status[mavnode] = manager_status
+
+    def _recv_gimbal_device_attitude_status(self, msg: mavlink2.MAVLink_gimbal_device_attitude_status_message):
+        mavnode = MavlinkNode(system_id=msg.get_srcSystem(), cmp_id=msg.get_srcComponent())
+        gimbal_status = _GimbalStatus(
+            system_id=mavnode.system_id,
+            component_id=mavnode.component_id,
+            flags=_GimbalDeviceFlags(msg.flags),
+            q=(msg.q[0], msg.q[1], msg.q[2], msg.q[3]),
+            angular_velocity_x=msg.angular_velocity_x,
+            angular_velocity_y=msg.angular_velocity_y,
+            angular_velocity_z=msg.angular_velocity_z,
+            failure_flags=_GimbalDeviceErrorFlags(msg.failure_flags)
+        )
+        self.gimbal_status[mavnode] = gimbal_status
+
+    def _take_control(self, msg: _Command):
+        manager = msg.gimbal_manager
+        primary = msg.primary_controller
+        secondary = msg.secondary_controller
+
+        # this mavlink message is documented here:
+        # https://mavlink.io/en/messages/common.html#MAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE
+        mav_cmd = mavlink2.MAVLink_command_long_message(
+            target_system=manager.system_id,
+            target_component=manager.component_id,
+            command=mavlink2.MAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE,
+            confirmation=0,
+            param1=primary.system_id,
+            param2=primary.component_id,
+            param3=secondary.system_id,
+            param4=secondary.component_id,
+            param5=0,
+            param6=0,
+            param7=msg.gimbal_device_id
+        )
+        self.mav_sender.send(mav_cmd)
 
 
-    
-
-mavlink_from_meta = SensorMeta('mavlink_from', 'mavlink/from', Mavlink)
-
-def find_gimbal_managers(pub: rospy.Publisher, sub: rospy.Subscriber, wait_time:float = 4.0):
-    """Finds the gimbal managers
-    Parameters:
-        pub should be 
-    """
-    pass
+    def _set_attitude(self, msg: _Command):
+        pass
