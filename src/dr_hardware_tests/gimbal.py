@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, MutableMapping, NoReturn, Tuple, Union,
 
 import mavros.mavlink
 import rospy
+from tf.transformations import quaternion_about_axis
 
 from mavros_msgs.msg import Mavlink
 from pymavlink import mavutil
@@ -65,7 +66,7 @@ class MavlinkNode:
     system_id: SystemId
     component_id: ComponentId
 
-
+# quaternions are represented x, y, z, w (to match what the tf library does)
 Quaternion = NewType('Quaternion', Tuple[float, float, float, float])
 
 
@@ -163,6 +164,7 @@ class _CmdType(enum.Enum):
     GET_GIMBALS = enum.auto()
     RECV_MAVLINK = enum.auto()
     SET_ATTITUDE  = enum.auto()
+    RESET_GIMBAL = enum.auto()
     TAKE_CONTROL = enum.auto()
 
 
@@ -206,6 +208,7 @@ class Gimbal:
             _CmdType.RECV_MAVLINK: self._recv_mavlink,
             _CmdType.SET_ATTITUDE: self._set_attitude,
             _CmdType.TAKE_CONTROL: self._take_control,
+            _CmdType.RESET_GIMBAL: self._reset_gimbal,
         }
 
         self._recv_mavlink_method = {
@@ -284,11 +287,33 @@ class Gimbal:
         self.cmd_queue.put(cmd)
     
     def set_attitude(self, q: Quaternion, gimbal_manager: Union[MavlinkNode, GimbalManager], gimbal_id: ComponentId = 0):
+        """Set the attitude of the gimbal. 
+        
+        The quaternion parameter is specified using the convention from TF (X, Y, Z, W).
+        The quaternion applies rotation in a forward right down coordinate system.
+
+        The gimbal manager and gimbal device specify which gimbal you want to control. you need to
+        take control of the gimbal manager before using this method or else the gimbal manager will
+        ignore the command. You can use the `take_control` method to set this object as a controller.
+        """
+        # MAVLink expects w, x, y, z order but our Quaternion follows the x, y, z, w convention from the tf lib
+        q = q[3], *q[:3]
         if type(gimbal_manager) == GimbalManager:
             gimbal_manager = gimbal_manager.mavlink_node
         cmd = _Command(
             command_type=_CmdType.SET_ATTITUDE,
             quaternion=q,
+            gimbal_manager=gimbal_manager,
+            gimbal_device_id = gimbal_id,
+        )
+        self.cmd_queue.put(cmd)
+    
+    def reset_attitude(self, gimbal_manager: Union[MavlinkNode, GimbalManager], gimbal_id: ComponentId = 0):
+        if type(gimbal_manager) == GimbalManager:
+            gimbal_manager = gimbal_manager.mavlink_node
+        cmd = _Command(
+            command_type=_CmdType.RESET_GIMBAL,
+            gimbal_device_id = gimbal_id,
             gimbal_manager=gimbal_manager,
         )
         self.cmd_queue.put(cmd)
@@ -429,6 +454,19 @@ class Gimbal:
             flags=_GimbalManagerFlags.GIMBAL_MANAGER_FLAGS_NOTHING.value,
             gimbal_device_id=msg.gimbal_device_id,
             q=msg.quaternion,
+            angular_velocity_x=math.nan,
+            angular_velocity_y=math.nan,
+            angular_velocity_z=math.nan,
+        )
+        self.mav_sender.send(mav_cmd)
+    
+    def _reset_gimbal(self, cmd: _Command):
+        mav_cmd = mavlink2.MAVLink_gimbal_manager_set_attitude_message(
+            target_system=cmd.gimbal_manager.system_id,
+            target_component=cmd.gimbal_manager.component_id,
+            flags=_GimbalManagerFlags.GIMBAL_MANAGER_FLAGS_NEUTRAL.value,
+            gimbal_device_id=cmd.gimbal_device_id,
+            q=[math.nan, math.nan, math.nan, math.nan],
             angular_velocity_x=math.nan,
             angular_velocity_y=math.nan,
             angular_velocity_z=math.nan,
