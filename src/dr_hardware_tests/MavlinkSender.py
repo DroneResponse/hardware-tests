@@ -18,7 +18,7 @@ class MavlinkSender:
         self.lock = Lock()
 
     def send(self, msg: mavlink2.MAVLink_message):
-        with self.lock:
+        with self.lock:            
             msg.pack(self.protocol_handler)
             rosmsg = mavros.mavlink.convert_to_rosmsg(msg)
             # there is a bug in convert_to_rosmsg where it doesn't set the seq number

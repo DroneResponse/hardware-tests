@@ -250,7 +250,6 @@ class Gimbal:
     def get_gimbals(self) -> List[GimbalManager]:
         """This method returns the list of gimbal managers we already know about 
         """
-        rospy.loginfo("public method for getting gimbals")
         cmd = _Command(
             command_type=_CmdType.GET_GIMBALS
         )
@@ -324,7 +323,6 @@ class Gimbal:
         rospy.on_shutdown(on_exit)
         while not rospy.is_shutdown():
             cmd: _Command = self.cmd_queue.get()
-            rospy.loginfo(f"gimbal loop: recv'd command {cmd}")
             if cmd.command_type == _CmdType.EXIT:
                 return
 
@@ -365,12 +363,9 @@ class Gimbal:
             param6=0,
             param7=ADDRESS_OF_REQUESTOR # the Response Target
         )
-        rospy.loginfo("sending mav request")
         self.mav_sender.send(request_cmd)
     
     def _get_gimbals(self, cmd: _Command):
-        rospy.loginfo(f"getting {len(self.gimbal_managers)} gimbal(s)")
-
         result = list(self.gimbal_managers.values())
         cmd.return_channel.put(result)
 

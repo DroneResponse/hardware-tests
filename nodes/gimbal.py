@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 
+# Here is what the gimbal test is supposed to do:
+# 1) turn 90 degrees around the front axis (roll like you're titlting your head to the right)
+# 2) turn 90 degrees around the right axis (look up)
+# 3) turn 90 degrees around the down axis (look right)
+# 4) look right 90 degrees and look down 45 degrees
+# 5) look left 90 degrees then look up 45 degrees
+# between each 
+#
+# How long should this test wait for the gimbal to move?
+# After we send a command to maneuver the gimbal we need to wait for the gimbal to finish moving.
+# This next variable controls how long will you wait. 
+GIMBAL_WAITING_TIME = 5.0 # seconds
+
 import os
 
 from dr_hardware_tests.gimbal import MavlinkNode
@@ -20,12 +33,13 @@ from tf.transformations import quaternion_from_euler, quaternion_about_axis, qua
 from pymavlink.dialects.v20 import common as mavlink2
 
 
-
 def log(msg):
     rospy.loginfo(f"gimbal test: {msg}")
 
+
 def _quaternion_about_axis_d(angle_degrees: float, axis):
     return quaternion_about_axis(math.radians(angle_degrees), axis)
+
 
 def main():
     log("initializing")
@@ -36,17 +50,17 @@ def main():
     for gm in gimbal_managers:
         log(f"found gimbal manager: {gm.mavlink_node}")
     
-    ## 1) turn 90 degrees around the first axis
+    ## 1) turn 90 degrees around the front axis
     axis = (1, 0, 0)
     angle = 90
     q1 = quaternion_about_axis(math.radians(angle), axis)
 
-    ## 2) turn 90 degrees around the second axis
+    ## 2) turn 90 degrees around the right axis
     angle = 90
     axis = (0, 1, 0)
     q2 = quaternion_about_axis(math.radians(angle), axis)
 
-    ## 3) turn 90 degrees around the third axis
+    ## 3) turn 90 degrees around the down axis
     angle = 90
     axis = (0, 0, 1)
     q3 = quaternion_about_axis(math.radians(angle), axis)
@@ -71,16 +85,14 @@ def main():
     log("move the gimbal")
     for q in all_quaternions:
         drone.gimbal.set_attitude(q, gimbal_manager)
-        sleep(5)
+        sleep(GIMBAL_WAITING_TIME)
         drone.gimbal.reset_attitude(gimbal_manager)
-        sleep(1)
+        sleep(GIMBAL_WAITING_TIME)
 
     
     log("reset gimbal to neutral position")
     drone.gimbal.reset_attitude(gimbal_manager)
     sleep(1)
-    
-
 
 
 if __name__ == "__main__":
