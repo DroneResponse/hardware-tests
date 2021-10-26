@@ -1,6 +1,8 @@
 import enum
 
 from dataclasses import dataclass, field
+from math import nan
+import math
 from queue import Empty, Queue
 from threading import Thread
 from time import time, sleep
@@ -64,6 +66,9 @@ class MavlinkNode:
     component_id: ComponentId
 
 
+Quaternion = NewType('Quaternion', Tuple[float, float, float, float])
+
+
 @dataclass
 # This class is based on the GIMBAL_MANAGER_INFORMATION message
 # https://mavlink.io/en/messages/common.html#GIMBAL_MANAGER_INFORMATION
@@ -86,6 +91,7 @@ class GimbalManager:
 
 # GIMBAL_MANAGER_FLAGS
 class _GimbalManagerFlags(enum.Flag):
+    GIMBAL_MANAGER_FLAGS_NOTHING    = 0
     GIMBAL_MANAGER_FLAGS_RETRACT    = 1 # Based on GIMBAL_DEVICE_FLAGS_RETRACT
     GIMBAL_MANAGER_FLAGS_NEUTRAL    = 2 # Based on GIMBAL_DEVICE_FLAGS_NEUTRAL
     GIMBAL_MANAGER_FLAGS_ROLL_LOCK  = 4 # Based on GIMBAL_DEVICE_FLAGS_ROLL_LOCK
@@ -144,7 +150,7 @@ class _GimbalStatus:
     system_id: SystemId
     component_id: ComponentId
     flags: _GimbalDeviceFlags
-    q: Tuple[float, float, float, float]
+    q: Quaternion
     angular_velocity_x: float # radians per second
     angular_velocity_y: float # radians per second
     angular_velocity_z: float # radians per second
@@ -165,7 +171,7 @@ class _Command:
     command_type: _CmdType
 
     # used for SET_ATTITUDE
-    quaternion: Tuple[float, float, float, float] = None
+    quaternion: Quaternion = None
     gimbal_manager: MavlinkNode = None
 
     # used for receiving mavlink
@@ -189,7 +195,6 @@ class Gimbal:
         self.mav_sender = mav_sender
         self.cmd_queue = Queue()
         self.gimbal_managers: MutableMapping[MavlinkNode, GimbalManager] = dict()
-        self.act
         self.gimbal_manager_status: MutableMapping[MavlinkNode, _GimbalManagerStatus] = dict()
         self.gimbal_status: MutableMapping[MavlinkNode, _GimbalStatus] = dict()
 
@@ -211,8 +216,18 @@ class Gimbal:
 
     def start(self):
         self.worker_thread.start()
+    
+    def stop(self, join=True):
+        if not self.worker_thread.is_alive():
+            return
+        cmd = _Command(
+            command_type=_CmdType.EXIT
+        )
+        self.cmd_queue.put(cmd)
+        if join:
+            self.worker_thread.join()
 
-    def find_gimbals(self, wait_time=5) -> List[GimbalManager]:
+    def find_gimbals(self, wait_time=5.0) -> List[GimbalManager]:
         """This method broadcasts a mavlink message that requests all gimbal managers to respond with their details.
         
         The wait_time parameter is how long this method will wait responses in seconds. Any responses we receive after this amount of time won't be included in the return value.
@@ -227,19 +242,21 @@ class Gimbal:
         
         response_thread = Thread(target=response_func, daemon=True)
         response_thread.start()
-        return cmd.return_channel.get(wait_time+1.0)
+        return cmd.return_channel.get(timeout=wait_time+1.0)
 
     def get_gimbals(self) -> List[GimbalManager]:
         """This method returns the list of gimbal managers we already know about 
         """
+        rospy.loginfo("public method for getting gimbals")
         cmd = _Command(
             command_type=_CmdType.GET_GIMBALS
         )
-        return cmd.return_channel.get(0.75)
+        self.cmd_queue.put(cmd)
+        return cmd.return_channel.get(timeout=1.0)
 
     def take_control(self,
                      gimbal_manager: Union[MavlinkNode, GimbalManager],
-                     gimbal_id: ComponentId,
+                     gimbal_id: ComponentId = 0,
                      primary_controller: MavlinkNode = None,
                      secondary_controller: MavlinkNode = None):
         """Tell the gimbal manager which mavlink node has primary control and which has secondary control.
@@ -253,7 +270,7 @@ class Gimbal:
 
         if primary_controller is None:
             # make this the primary controller
-            MavlinkNode(self.mav_sender.system_id, self.mav_sender.component_id)
+            primary_controller = MavlinkNode(self.mav_sender.system_id, self.mav_sender.component_id)
 
         if secondary_controller is None:
             # -1 means don't change the controller
@@ -265,10 +282,24 @@ class Gimbal:
                        secondary_controller=secondary_controller,
                        gimbal_device_id=gimbal_id)
         self.cmd_queue.put(cmd)
+    
+    def set_attitude(self, q: Quaternion, gimbal_manager: Union[MavlinkNode, GimbalManager], gimbal_id: ComponentId = 0):
+        if type(gimbal_manager) == GimbalManager:
+            gimbal_manager = gimbal_manager.mavlink_node
+        cmd = _Command(
+            command_type=_CmdType.SET_ATTITUDE,
+            quaternion=q,
+            gimbal_manager=gimbal_manager,
+        )
+        self.cmd_queue.put(cmd)
 
     def _run(self):
+        def on_exit():
+            self.stop(join=False)
+        rospy.on_shutdown(on_exit)
         while not rospy.is_shutdown():
             cmd: _Command = self.cmd_queue.get()
+            rospy.loginfo(f"gimbal loop: recv'd command {cmd}")
             if cmd.command_type == _CmdType.EXIT:
                 return
 
@@ -297,8 +328,8 @@ class Gimbal:
 
         ADDRESS_OF_REQUESTOR = 1 # constant for param7 of MAV_CMD_REQUEST_MESSAGE
         request_cmd = mavlink2.MAVLink_command_long_message(
-            target_system=0, # broadcast to all systems
-            target_component=0, # broadcast to all components
+            target_system=1, # broadcast to all systems
+            target_component=1, # broadcast to all components
             command=mavlink2.MAV_CMD_REQUEST_MESSAGE, # this command is a request message
             confirmation=0,
             param1=mavlink2.MAVLINK_MSG_ID_GIMBAL_MANAGER_INFORMATION, # the message we request
@@ -309,9 +340,12 @@ class Gimbal:
             param6=0,
             param7=ADDRESS_OF_REQUESTOR # the Response Target
         )
+        rospy.loginfo("sending mav request")
         self.mav_sender.send(request_cmd)
     
     def _get_gimbals(self, cmd: _Command):
+        rospy.loginfo(f"getting {len(self.gimbal_managers)} gimbal(s)")
+
         result = list(self.gimbal_managers.values())
         cmd.return_channel.put(result)
 
@@ -389,4 +423,14 @@ class Gimbal:
 
 
     def _set_attitude(self, msg: _Command):
-        pass
+        mav_cmd = mavlink2.MAVLink_gimbal_manager_set_attitude_message(
+            target_system=msg.gimbal_manager.system_id,
+            target_component=msg.gimbal_manager.component_id,
+            flags=_GimbalManagerFlags.GIMBAL_MANAGER_FLAGS_NOTHING.value,
+            gimbal_device_id=msg.gimbal_device_id,
+            q=msg.quaternion,
+            angular_velocity_x=math.nan,
+            angular_velocity_y=math.nan,
+            angular_velocity_z=math.nan,
+        )
+        self.mav_sender.send(mav_cmd)

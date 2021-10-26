@@ -1,4 +1,6 @@
 import os
+
+from dr_hardware_tests.gimbal import Gimbal
 os.environ["MAVLINK20"] = "1"
 
 import math
@@ -79,7 +81,7 @@ class Drone:
     CIRCULAR_RADIUS = 100
     """sends commands to the drone
     """
-    def __init__(self, simulate_gcs_heartbeat=True):
+    def __init__(self, simulate_gcs_heartbeat=True, init_gimbal=True):
         self.services: MutableMapping[str, RosService] = {}
         for service in _MAVROS_SERVICES:
             name = service.name
@@ -109,6 +111,9 @@ class Drone:
         self.mavlink_sender = MavlinkSender(system_id=self.system_id, component_id=self.component_id, mavlink_pub=self._mavlink_pub)
         self.onboard_heartbeat = HeartbeatSender(self.mavlink_sender, MavType.ONBOARD_CONTROLLER)
         self._heartbeat_senders.append(self.onboard_heartbeat)
+        self.gimbal = False
+        if init_gimbal:
+            self.gimbal = Gimbal(self.mavlink_sender)
 
     
     def start(self):
@@ -116,6 +121,8 @@ class Drone:
             hb.start()
         
         self.onboard_heartbeat.mav_state = MavState.ACTIVE
+        if self.gimbal:
+            self.gimbal.start()
             
     
     def set_preflight_params(self):
