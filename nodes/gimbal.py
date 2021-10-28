@@ -77,22 +77,29 @@ def main():
     q5 = quaternion_multiply(b, a)
 
     all_quaternions = [q1, q2, q3, q4, q5]
+    log_messages = [
+        "roll gimbal right 90 degrees (rotate around the front axis)",
+        "tilt gimbal up 90 degrees (rotate around the right axis)",
+        "turn gimbal right 90 degrees (rotate around the down axis)",
+        "turn gimbal right 90 degrees and look down 45 degrees",
+        "turn gimbal left 90 degrees and look up 45 degrees",
+    ]
+
 
     log("taking control of gimbal manager sysid=1, compid=1")
     gimbal_manager = MavlinkNode(1, 1)
     drone.gimbal.take_control(gimbal_manager)
     
     log("move the gimbal")
-    for q in all_quaternions:
+    for index, (q, log_msg) in enumerate(zip(all_quaternions, log_messages)):
+        log(f"{log_msg} (maneuver {index + 1} of {len(all_quaternions)})")
         drone.gimbal.set_attitude(q, gimbal_manager)
         sleep(GIMBAL_WAITING_TIME)
+        log("resetting gimbal to neutral position")
         drone.gimbal.reset_attitude(gimbal_manager)
         sleep(GIMBAL_WAITING_TIME)
 
-    
-    log("reset gimbal to neutral position")
-    drone.gimbal.reset_attitude(gimbal_manager)
-    sleep(1)
+    log("test done")
 
 
 if __name__ == "__main__":
