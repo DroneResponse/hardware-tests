@@ -60,6 +60,7 @@ _SERVICE_TIMEOUT = 10.0  # seconds
 class FlightMode(str, enum.Enum):
     # These docs list other possible mode values:
     # http://wiki.ros.org/mavros/CustomModes
+    ALTCTL = "ALTCTL"
     LAND = "AUTO.LAND"
     LOITER = "AUTO.LOITER"
     MISSION = "AUTO.MISSION"
@@ -70,7 +71,6 @@ class FlightMode(str, enum.Enum):
     TAKEOFF = "AUTO.TAKEOFF"
     # These flight modes were deliberately excluded:
     # ACRO = "ACRO"
-    # ALTCTL = "ALTCTL"
     # RATTITUDE = "RATTITUDE"
     # MANUAL = "MANUAL"
     # READY = "AUTO.READY"
