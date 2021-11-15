@@ -127,9 +127,6 @@ class SensorSynchronizer:
     def start(self, sensors: Iterable[SensorMeta] = MAVROS_SENSORS):
         self.thread.start()
 
-        from .flight_helpers import start_RC_failsafe_watchdog
-        start_RC_failsafe_watchdog(self)
-
         for sensor_meta in sensors:
             sensor_callback = self._make_subscriber_callback(sensor_meta.name)
             sensor_meta.make_sub(sensor_callback)
