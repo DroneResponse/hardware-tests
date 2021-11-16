@@ -140,6 +140,4 @@ def is_user_taking_control(data: SensorData):
 
     # if the user tries to land using the RC, then we need to exit
     chan5_raw = data.rcin.channels[5]
-    is_user_landing = 1160 <= chan5_raw and chan5_raw <= 1320
-    if is_user_landing:
-        return True
+    return 1160 <= chan5_raw and chan5_raw <= 1320
