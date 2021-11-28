@@ -20,6 +20,14 @@ rosrun dr_hardware_tests hover.py
 
 ```
 
+## Install PX4
+
+Please download the latest stable release of PX4 (works with our project) using the following command:
+
+```bash
+git clone --recurse-submodules --branch v1.12.3 https://github.com/PX4/PX4-Autopilot.git
+```
+
 ## How to run tests connecting to a serial device
 
 We are using docker to run the tests on a Jetson. Docker has been installed on the Jetson to be used for the first drone using this [documentation](https://docs.docker.com/engine/install/ubuntu/). A docker image named **test** containing all the necessary packages and the code has also been built on that Jetson. Using that image, the code can be run using the following instructions:
