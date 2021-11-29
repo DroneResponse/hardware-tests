@@ -36,7 +36,6 @@ def main():
          (FlightMode.STABILIZED.value, "STABILIZED"),
          (FlightMode.ALTCTL.value, "Altitude"),
          (FlightMode.POSCTL.value, "POSITION"),
-         (FlightMode.RTL.value, "RTL"),
     ]
 
     for mode, mode_name in flight_modes:
