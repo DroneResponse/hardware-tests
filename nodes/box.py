@@ -32,7 +32,7 @@ def takeoff(drone: Drone, sensors: SensorSynchronizer):
     drone.set_mode(FlightMode.TAKEOFF)
     log("waiting for drone to reach alt")
 
-    is_takeoff_alt_reached = make_func_is_alt_reached(7.0)
+    is_takeoff_alt_reached = make_func_is_alt_reached(7.0, threshold=1.0)
     sensors.await_condition(is_takeoff_alt_reached, 30)
     log("takeoff complete")
 

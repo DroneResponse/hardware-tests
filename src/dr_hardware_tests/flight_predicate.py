@@ -44,11 +44,11 @@ def is_takeoff_or_offboard_mode(data: SensorData):
     return is_takeoff_mode(data) or is_offboard_mode(data)
 
 
-def make_func_is_alt_reached(alt: float, threshold: float = 0.25):
+def make_func_is_alt_reached(target_alt: float, threshold: float = 0.25):
+    target_alt = target_alt - threshold
     def is_takeoff_alt_reached(data: SensorData):
-        delta_alt = alt - data.relative_altitude.data
-        delta_alt = abs(delta_alt)
-        return delta_alt < threshold
+        drone_alt = data.relative_altitude.data
+        return target_alt < drone_alt
 
     return is_takeoff_alt_reached
 
