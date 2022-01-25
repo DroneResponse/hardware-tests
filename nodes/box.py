@@ -104,7 +104,7 @@ def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
     ]
     for i in range(len(waypoints_wgs84)):
         target_lla = waypoints_wgs84[i]
-        is_arrived = make_func_is_drone_at_target(target_lla)
+        is_arrived = make_func_is_drone_at_target(target_lla, threshold_distance_meters=2.0)
 
         setpoint_lla = ellipsoid_to_amsl(target_lla)
         log(f"flying to the {waypoint_names[i]} waypoint (#{i} of {len(waypoint_names)}) at {setpoint_lla}")
