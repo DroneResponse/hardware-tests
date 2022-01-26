@@ -10,6 +10,8 @@ def is_data_available(data: SensorData) -> bool:
     a = dataclasses.asdict(data)
     # Geofence not needed to run tests
     del a["geofence"]
+    # Don't check for RC transmitter data while simulating
+    del a["rcin"]
     for _, msg in a.items():
         if msg == None:
             return False

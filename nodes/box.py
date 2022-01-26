@@ -132,8 +132,8 @@ def main():
     # log("waiting for user to start the test with the RC transmitter")
     # sensors.await_condition(is_user_ready_to_start)
 
-    log("starting RC failsafe trigger")
-    start_RC_failsafe(sensors)
+    # log("starting RC failsafe trigger")
+    # start_RC_failsafe(sensors)
 
     log("waiting for sensors data")
     sensors.await_condition(is_data_available, 30)
