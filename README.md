@@ -93,14 +93,98 @@ sudo vim mavros.launch
 
 ```
 
+## How to run multiple drones in simulation
 
+This project needs [ROS Noetic](http://wiki.ros.org/noetic/Installation/Ubuntu) and Ubuntu 20.04. We can put everything on a docker container. The containers can then be used to create multiple instances of the docker image and they will enable us to fly multiple drones.
 
+First, we need to create a catkin_ws and a src directeory using this command and navigate to src directory:
 
+```bash
+mkdir catkin_ws
+cd catkin_ws
+mkdir src
+cd src
 
+```
 
+Then we need to download the PX4 repository inside the src directory and rename the PX4-Autopilot directory to px4:
 
+```bash
+git clone --recurse-submodules --branch v1.12.3 https://github.com/PX4/PX4-Autopilot.git
+mv PX4-Autopilot px4
 
+```
 
+We also want to copy the hardware-tests directory inside the src and rename it to dr_hardware_tests. This can be done with a mouse or if within a virtual box, from command line:
 
+```bash
+cp -r hardware-tests catkin_ws/src/
+mv hardware-tests dr_hardware_tests
 
+```
+
+Then we can put the Dockerfile in this branch and the catkin_ws directory on the same directory and build the docker:
+
+```bash
+sudo docker build .
+
+```
+
+This will create a docker image. For reusing the image many times, we can tag it:
+
+```bash
+sudo docker tag c5b2f3541681 simulation
+
+```
+
+Then we can run the container:
+
+```bash
+sudo docker run --rm -it simulation
+
+```
+
+The terminal will enter the docker container's work directory which is catkin_ws. The terminal should show something similar to **root@c5b2f3541681:/catkin_ws#**. We need to copy the hostname. We want to be able to run the same container from other terminals so we can create two terminals and run this
+:
+
+```bash
+sudo docker exec -it c5b2f3541681 bash
+
+```
+
+We want to navigate to the px4 directory:
+
+```bash
+cd src
+cd px4
+
+```
+Then we want to launch px4 with either Gazebo or Jmavsim in HEADLESS mode:
+
+```bash
+make px4_sitl gazebo
+make px4_sitl jmavsim
+
+```
+To run the code, in the first temrinal, launch the mavros and ROS master using this command:
+
+```bash
+roslaunch dr_hardware_tests mavros.launch
+
+```
+
+In the second terminal, the tests can be run using these commands:
+
+```bash
+rosrun dr_hardware_tests indoor_sensors.py
+rosrun dr_hardware_tests sensors.py
+rosrun dr_hardware_tests arm.py
+rosrun dr_hardware_tests hover.py
+rosrun dr_hardware_tests box.py
+
+```
+
+Now to use two instances of drone, we need to open another three sets of terminal:
+
+In a terminal, we need to to build the docker image, this will give us another docker container id such as c5b2f3541681, then in that terminal, we can launch px4, and in the other two terminals, we can run the roslaunch and rosrun commands. So, for each instance of drones, we need three terminals.
 
