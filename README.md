@@ -93,6 +93,15 @@ sudo vim mavros.launch
 
 ```
 
+## Install MQTT
+
+We can install mosquitto MQTT with this command:
+
+```bash
+sudo apt-get install mosquitto
+
+```
+
 ## How to run multiple drones in simulation
 
 
