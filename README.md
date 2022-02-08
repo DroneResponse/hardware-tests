@@ -97,12 +97,7 @@ sudo vim mavros.launch
 
 
 
-This project needs [ROS Noetic](http://wiki.ros.org/noetic/Installation/Ubuntu) and Ubuntu 20.04. We can put everything on a docker container. The containers can then be used to create multiple instances of the docker image and they will enable us to fly multiple drones. We als need MQTT and we can install mosquitto MQTT using this command in ubuntu:
-
-```bash
-sudo apt-get install mosquitto
-
-```
+This project needs [ROS Noetic](http://wiki.ros.org/noetic/Installation/Ubuntu) and Ubuntu 20.04. We can put everything on a docker container. The containers can then be used to create multiple instances of the docker image and they will enable us to fly multiple drones. 
 
 First, we need to create a catkin_ws and a src directeory using this command and navigate to src directory:
 
