@@ -93,6 +93,14 @@ sudo vim mavros.launch
 
 ```
 
+## Install MQTT
+
+```bash
+sudo apt-get install mosquitto
+sudo apt-get install mosquitto-clients
+
+```
+
 
 
 
