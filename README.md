@@ -95,6 +95,8 @@ sudo vim mavros.launch
 
 ## Install MQTT
 
+Install the mosquitto MQTT broker on the Jetpack on Jetson (Not on docker).
+
 ```bash
 sudo apt-get install mosquitto
 sudo apt-get install mosquitto-clients
