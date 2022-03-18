@@ -1,5 +1,7 @@
 import dataclasses
 
+import rospy
+
 from droneresponse_mathtools import Lla
 
 from .Drone import FlightMode
@@ -124,21 +126,25 @@ def is_user_taking_control(data: SensorData):
     """If this function returns True, then the user is trying to take control with the RC
     transmitter
     """
-    if data.state is None:
-        return False
-    if data.rcin is None:
-        return False
+    if data.state is not None:
+        # if the flight controller enters these modes, it means the user is trying to take control
+        user_control_modes = [
+            FlightMode.STABILIZED.value,
+            FlightMode.ALTCTL.value,
+            FlightMode.POSCTL.value,
+            FlightMode.RTL.value,
+        ]
+        if data.state.mode in user_control_modes:
+            rospy.logfatal(f"The mode is {data.state.mode}, did someone take control?")
+            return True
+    
+    if data.rcin is not None:
+        chan5_raw = data.rcin.channels[5]
+        return 1160 <= chan5_raw and chan5_raw <= 1320
+    
+    return False
 
-    # if the flight controller enters these modes, it means the user is trying to take control
-    user_control_modes = [
-        FlightMode.STABILIZED.value,
-        FlightMode.ALTCTL.value,
-        FlightMode.POSCTL.value,
-        FlightMode.RTL.value,
-    ]
-    if data.state.mode in user_control_modes:
-        return True
+
 
     # if the user tries to land using the RC, then we need to exit
-    chan5_raw = data.rcin.channels[5]
-    return 1160 <= chan5_raw and chan5_raw <= 1320
+    
