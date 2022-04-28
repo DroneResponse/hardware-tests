@@ -27,7 +27,7 @@ RUN pip3 install nvector==0.7.6
 
 
 
-RUN pip3 install http://docs.q3w.co/droneresponse_mathtools-0.2.1-py2.py3-none-any.whl
+RUN pip3 install https://mm-public-fileshare.s3.amazonaws.com/droneresponse_mathtools-0.2.2-py2.py3-none-any.whl
 
 # clean up
 RUN rm -rf /var/lib/apt/lists/*
