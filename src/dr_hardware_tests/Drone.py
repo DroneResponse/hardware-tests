@@ -1,3 +1,9 @@
+import os
+
+from dr_hardware_tests.gimbal import Gimbal
+os.environ["MAVLINK20"] = "1"
+
+import math
 from collections import namedtuple
 from collections.abc import MutableMapping
 from copy import copy
@@ -5,7 +11,7 @@ from dataclasses import dataclass, field
 import enum
 import queue
 from threading import Event, Lock, Thread
-from typing import Callable, TypedDict
+from typing import Callable, List, TypedDict
 
 from droneresponse_mathtools import Lla
 
@@ -14,12 +20,15 @@ from mavros import mavlink
 from mavros_msgs.msg import GlobalPositionTarget, Mavlink, ParamValue, PositionTarget, Waypoint
 from mavros_msgs.srv import CommandBool, ParamGet, ParamSet, SetMode, WaypointClear, WaypointPush
 from pymavlink import mavutil
-from pymavlink.dialects.v10 import common
+from pymavlink.dialects.v10 import common as mavlink1
+from pymavlink.dialects.v20 import common as mavlink2
 from std_msgs.msg import Float64
 from tf.transformations import quaternion_from_euler
 
 import rospy
 
+from .MavlinkSender import MavlinkSender
+from .HeartbeatSender import HeartbeatSender, MavType, MavState
 
 @dataclass(frozen=True)
 class ServiceData:
@@ -51,6 +60,7 @@ _SERVICE_TIMEOUT = 10.0  # seconds
 class FlightMode(str, enum.Enum):
     # These docs list other possible mode values:
     # http://wiki.ros.org/mavros/CustomModes
+    ALTCTL = "ALTCTL"
     LAND = "AUTO.LAND"
     LOITER = "AUTO.LOITER"
     MISSION = "AUTO.MISSION"
@@ -61,7 +71,6 @@ class FlightMode(str, enum.Enum):
     TAKEOFF = "AUTO.TAKEOFF"
     # These flight modes were deliberately excluded:
     # ACRO = "ACRO"
-    # ALTCTL = "ALTCTL"
     # RATTITUDE = "RATTITUDE"
     # MANUAL = "MANUAL"
     # READY = "AUTO.READY"
@@ -69,9 +78,10 @@ class FlightMode(str, enum.Enum):
 
 
 class Drone:
+    CIRCULAR_RADIUS = 100
     """sends commands to the drone
     """
-    def __init__(self):
+    def __init__(self, simulate_gcs_heartbeat=True, init_gimbal=True):
         self.services: MutableMapping[str, RosService] = {}
         for service in _MAVROS_SERVICES:
             name = service.name
@@ -81,12 +91,47 @@ class Drone:
             rospy.wait_for_service(ros_srv.topic, _SERVICE_TIMEOUT)
 
         self._setpoint_pub =  rospy.Publisher("mavros/setpoint_position/global", GeoPoseStamped, queue_size=1)
-
         self._mavlink_pub = rospy.Publisher("mavlink/to", Mavlink, queue_size=1)
-        self._heartbeat_thread = Thread(target=self._heartbeat)
+        
+        self._heartbeat_senders: List[HeartbeatSender] = []
+        if simulate_gcs_heartbeat: 
+            # A system_id near 255 is recommend by the mavlink protocol:
+            # https://mavlink.io/en/guide/routing.html    
+            # since QGroundControl defaults to 255 we will set this to 254
+            gcs_system_id=254
+            hb_mavlink_sender = MavlinkSender(gcs_system_id, mavlink2.MAV_COMP_ID_MISSIONPLANNER, self._mavlink_pub)
+            # the send frequency of 2 is based on this section of mavlink website says:
+            # https://mavlink.io/en/services/heartbeat.html#heartbeat-broadcast-frequency
+            gcs_hb = HeartbeatSender(hb_mavlink_sender, component_type=MavType.GCS, send_frequency=2)
+            gcs_hb.mav_state = MavState.ACTIVE
+            self._heartbeat_senders.append(gcs_hb)
+        
+        self.system_id = rospy.get_param('mavros/target_system_id')
+        self.component_id = mavlink2.MAV_COMP_ID_ONBOARD_COMPUTER
+        self.mavlink_sender = MavlinkSender(system_id=self.system_id, component_id=self.component_id, mavlink_pub=self._mavlink_pub)
+        self.onboard_heartbeat = HeartbeatSender(self.mavlink_sender, MavType.ONBOARD_CONTROLLER)
+        self._heartbeat_senders.append(self.onboard_heartbeat)
+        self.gimbal = False
+        if init_gimbal:
+            self.gimbal = Gimbal(self.mavlink_sender)
+
     
     def start(self):
-        self._heartbeat_thread.start()
+        for hb in self._heartbeat_senders:
+            hb.start()
+        
+        self.onboard_heartbeat.mav_state = MavState.ACTIVE
+        if self.gimbal:
+            self.gimbal.start()
+            
+    
+    def set_preflight_params(self):
+        # enable override when in all auto modes and in offboard mode
+        # http://docs.px4.io/master/en/advanced_config/parameter_reference.html#COM_RC_OVERRIDE
+        self.set_param("COM_RC_OVERRIDE", integer_value=0b011)
+        self.set_param("GF_MAX_HOR_DIST", real_value=self.CIRCULAR_RADIUS)
+        self.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
+
 
     def stop(self):
         pass
@@ -141,6 +186,13 @@ class Drone:
 
         self.services['set_geofence'].call_service(0, fence_coordinates)
     
+    def send_gimbal_setpoint(self, quaternion):
+        message = mavlink2.MAVLink_gimbal_manager_set_attitude_message(target_system=1, target_component=1, flags=0, gimbal_device_id=0, q=quaternion, angular_velocity_x=math.nan, angular_velocity_y=math.nan, angular_velocity_z=math.nan)
+        message.pack(mavutil.mavlink.MAVLink("", 2, 1))
+        gimbal_cmd = mavlink.convert_to_rosmsg(message)
+        self._mavlink_pub.publish(gimbal_cmd)
+
+    
     def send_setpoint(self, lla: Lla, yaw=0.0):
         """Send a setpoint command to the flight controller
         
@@ -179,34 +231,4 @@ class Drone:
 
         return geo_pose_setpoint
 
-    
-    def _heartbeat(self):
-        heartbeat_message = self._make_heartbeat_message()
-        heart_rate = rospy.Rate(2)
-        while not rospy.is_shutdown():
-            self._mavlink_pub.publish(heartbeat_message)
-            # rospy.loginfo("sent heartbeat")
-            heart_rate.sleep()
-    
-    @staticmethod
-    def _make_heartbeat_message():
-        message = common.MAVLink_heartbeat_message(
-            mavutil.mavlink.MAV_TYPE_GCS, 0, 0, 0, 0, 0)
-            # # type=common.MAV_TYPE_ONBOARD_CONTROLLER,
-            # type=common.MAV_TYPE_GCS,
-            # # autopilot=common.MAV_AUTOPILOT_INVALID,
-            # autopilot=0,
-            # base_mode=0,
-            # custom_mode=0,
-            # system_status=0,
-            # mavlink_version=0)
-        
-        # protocol_handler = mavutil.mavlink.MAVLink(
-        #     file="",
-        #     srcSystem=2,
-        #     srcComponent=common.MAV_COMP_ID_ONBOARD_COMPUTER
-        # )
-        # message.pack(protocol_handler)
-        message.pack(mavutil.mavlink.MAVLink("", 2, 1))
-        return mavlink.convert_to_rosmsg(message)
     

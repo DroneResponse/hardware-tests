@@ -8,6 +8,7 @@ from dr_hardware_tests import Drone, SensorSynchronizer, SetpointSender
 from dr_hardware_tests import FlightMode, SensorData
 from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, make_func_is_drone_at_target, is_on_ground
+from dr_hardware_tests import is_user_ready_to_start, start_RC_failsafe
 from dr_hardware_tests import sleep
 
 
@@ -128,8 +129,17 @@ def main():
     sensors: SensorSynchronizer = SensorSynchronizer()
     sensors.start()
 
+    log("waiting for user to start the test with the RC transmitter")
+    sensors.await_condition(is_user_ready_to_start)
+
+    log("starting RC failsafe trigger")
+    start_RC_failsafe(sensors)
+
     log("waiting for sensors data")
     sensors.await_condition(is_data_available, 30)
+
+    log("setting preflight parameters")
+    drone.set_preflight_params()
 
     arm(drone, sensors)
     takeoff(drone, sensors)

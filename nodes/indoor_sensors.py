@@ -8,7 +8,9 @@ from dr_hardware_tests import SensorSynchronizer, SensorData, SensorMeta, MAVROS
 
 
 def is_indoor_sensor(sensor_meta: SensorMeta):
-    return sensor_meta.name != "position" and sensor_meta.name != "relative_altitude"
+    # return sensor_meta.name not in ["position", "relative_altitude", "rcin"]
+    return sensor_meta.name not in ["position", "relative_altitude"]
+
 
 INDOOR_SENSORS = set(filter(is_indoor_sensor, MAVROS_SENSORS))
 
@@ -24,11 +26,12 @@ class _SensorDetectionEvents:
 _detected = _SensorDetectionEvents()
 
 _sensor_names = set(map(lambda x: x.name, INDOOR_SENSORS))
-
+missing_messages = set()
 
 def test_recv_all_types(data: SensorData) -> bool:
     a = dataclasses.asdict(data)
-    missing_messages = set()
+    global missing_messages
+    missing_messages.clear()
     for name in _sensor_names:
         msg = a[name]
         if msg == None:
@@ -49,10 +52,12 @@ def main():
 
     rospy.loginfo(f"sensor test: testing if these sensors are available: {_sensor_names}")
     try:
-        synchronizer.await_condition(test_recv_all_types, 60)
+        synchronizer.await_condition(test_recv_all_types, 15)
         rospy.loginfo("sensor test: SUCCESS")
     except Exception as e:
         rospy.logfatal(f"{type(e).__name__} {e}")
+        for name in missing_messages:
+            rospy.logfatal(f"Did not detect {name}")
 
 
 if __name__ == "__main__":

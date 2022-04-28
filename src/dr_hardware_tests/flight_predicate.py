@@ -1,5 +1,7 @@
 import dataclasses
 
+import rospy
+
 from droneresponse_mathtools import Lla
 
 from .Drone import FlightMode
@@ -27,23 +29,29 @@ def is_disarmed(data: SensorData):
 def is_loiter_mode(data: SensorData):
     return data.state.mode == FlightMode.LOITER.value
 
+
 def is_posctl_mode(data: SensorData):
     return data.state.mode == FlightMode.POSCTL.value
+
 
 def is_takeoff_mode(data: SensorData):
     return data.state.mode == FlightMode.TAKEOFF.value
 
+
 def is_offboard_mode(data: SensorData):
     return data.state.mode == FlightMode.OFFBOARD.value
+
 
 def is_takeoff_or_offboard_mode(data: SensorData):
     return is_takeoff_mode(data) or is_offboard_mode(data)
 
-def make_func_is_alt_reached(alt: float, threshold:float=0.25):
+
+def make_func_is_alt_reached(alt: float, threshold: float = 0.25):
     def is_takeoff_alt_reached(data: SensorData):
         delta_alt = alt - data.relative_altitude.data
         delta_alt = abs(delta_alt)
         return delta_alt < threshold
+
     return is_takeoff_alt_reached
 
 
@@ -64,6 +72,7 @@ def is_on_ground(data: SensorData):
     # http://docs.ros.org/en/api/mavros_msgs/html/msg/ExtendedState.html
     _LANDED_STATE_ON_GROUND = 1
     return data.extended_state.landed_state == _LANDED_STATE_ON_GROUND
+
 
 def is_off_ground(data: SensorData):
     # _LANDED_STATE_ON_GROUND comes from
@@ -97,3 +106,44 @@ def inside_polygon(num_vertices: int, polygon, location):
 
     return inside
 
+
+def is_user_ready_to_start(data: SensorData):
+    """If this function returns True then the user has indicated (with the RC transmitter) that
+    they are ready to start the test.
+    """
+    if data.rcin is None:
+        return False
+    chan5_raw = data.rcin.channels[5]
+    chan8_raw = data.rcin.channels[8]
+
+    is_chan5_ok = 1380 <= chan5_raw and chan5_raw <= 1480
+    is_chan8_ok = chan8_raw < 1500
+    return is_chan5_ok and is_chan8_ok
+
+
+def is_user_taking_control(data: SensorData):
+    """If this function returns True, then the user is trying to take control with the RC
+    transmitter
+    """
+    if data.state is not None:
+        # if the flight controller enters these modes, it means the user is trying to take control
+        user_control_modes = [
+            FlightMode.STABILIZED.value,
+            FlightMode.ALTCTL.value,
+            FlightMode.POSCTL.value,
+            FlightMode.RTL.value,
+        ]
+        if data.state.mode in user_control_modes:
+            rospy.logfatal(f"The mode is {data.state.mode}, did someone take control?")
+            return True
+    
+    if data.rcin is not None:
+        chan5_raw = data.rcin.channels[5]
+        return 1160 <= chan5_raw and chan5_raw <= 1320
+    
+    return False
+
+
+
+    # if the user tries to land using the RC, then we need to exit
+    

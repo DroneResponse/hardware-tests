@@ -19,7 +19,8 @@ RUN apt install --yes vim
 
 #install pymavlink
 
-RUN pip3 install pymavlink
+RUN pip3 install https://mm-public-fileshare.s3.amazonaws.com/pymavlink-2.4.14.tar.gz
+RUN pip3 install paho-mqtt
 RUN pip3 install cython==0.29.24
 RUN pip3 install PyGeodesy
 RUN geographiclib-get-geoids egm96-5 
@@ -27,7 +28,7 @@ RUN pip3 install nvector==0.7.6
 
 
 
-RUN pip3 install http://docs.q3w.co/droneresponse_mathtools-0.2.1-py2.py3-none-any.whl
+RUN pip3 install https://mm-public-fileshare.s3.amazonaws.com/droneresponse_mathtools-0.2.2-py2.py3-none-any.whl
 
 # clean up
 RUN rm -rf /var/lib/apt/lists/*

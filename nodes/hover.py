@@ -9,7 +9,8 @@ import rospy
 from dr_hardware_tests import Drone, FlightMode, SensorSynchronizer
 from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, is_on_ground
-from dr_hardware_tests import start_RC_failsafe_watchdog, sleep
+from dr_hardware_tests import start_RC_failsafe, sleep
+from dr_hardware_tests import is_user_ready_to_start
 
 
 def log(msg):
@@ -22,8 +23,18 @@ def main():
     sensors = SensorSynchronizer()
     sensors.start()
 
+    log("waiting for user to start the test with the RC transmitter")
+    sensors.await_condition(is_user_ready_to_start)
+
+    log("starting RC failsafe trigger")
+    start_RC_failsafe(sensors)
+    
+
     log("waiting for sensor data to come online")
     sensors.await_condition(is_data_available, 30)
+
+    log("setting preflight parameters")
+    drone.set_preflight_params()
 
     log("sending arm command")
     drone.arm()

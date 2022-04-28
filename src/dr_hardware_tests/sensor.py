@@ -10,7 +10,7 @@ import sys
 
 from diagnostic_msgs.msg import DiagnosticArray
 from genpy import message
-from mavros_msgs.msg import EstimatorStatus, ExtendedState, State, WaypointList
+from mavros_msgs.msg import EstimatorStatus, ExtendedState, State, WaypointList, RCIn
 import rospy
 from rospy import client
 from sensor_msgs.msg import BatteryState, NavSatFix, Imu
@@ -39,6 +39,7 @@ MAVROS_SENSORS = {
     SensorMeta("state", "mavros/state", State),
     SensorMeta("velocity", "mavros/local_position/velocity_local", TwistStamped),
     SensorMeta("geofence", "mavros/geofence/waypoints", WaypointList),
+    SensorMeta("rcin", "mavros/rc/in", RCIn),
 }
 
 
@@ -54,6 +55,7 @@ class SensorData:
     state: State = None
     velocity: TwistStamped = None
     geofence: WaypointList = None
+    rcin: RCIn = None
 
 
 SensorTest = Callable[[SensorData], bool]
@@ -124,9 +126,6 @@ class SensorSynchronizer:
 
     def start(self, sensors: Iterable[SensorMeta] = MAVROS_SENSORS):
         self.thread.start()
-
-        from .flight_helpers import start_RC_failsafe_watchdog
-        start_RC_failsafe_watchdog(self)
 
         for sensor_meta in sensors:
             sensor_callback = self._make_subscriber_callback(sensor_meta.name)

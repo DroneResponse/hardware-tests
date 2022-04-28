@@ -21,13 +21,16 @@ _detected = _SensorDetectionEvents()
 
 _test_sensors = filter(lambda sensor_meta: sensor_meta.name != 'geofence', MAVROS_SENSORS)
 _sensor_names = set(map(lambda x: x.name, _test_sensors))
-
+missing_messages = set()
 
 def test_recv_all_types(data: SensorData) -> bool:
     all_sensor_messages = dataclasses.asdict(data)
     # Geofence does not need to be checked for this test
     del all_sensor_messages['geofence']
-    missing_messages = set()
+    # del all_sensor_messages["rcin"]
+
+    global missing_messages
+    missing_messages.clear()
     for name, msg in all_sensor_messages.items():
         if msg == None:
             missing_messages.add(name)
@@ -47,10 +50,12 @@ def main():
 
     rospy.loginfo(f"sensor test: testing if these sensors are available: {_sensor_names}")
     try:
-        synchronizer.await_condition(test_recv_all_types, 60)
+        synchronizer.await_condition(test_recv_all_types, 15)
         rospy.loginfo("sensor test: SUCCESS")
     except Exception as e:
         rospy.logfatal(f"{type(e).__name__} {e}")
+        for name in missing_messages:
+            rospy.logfatal(f"Did not detect {name}")
 
 
 if __name__ == "__main__":
