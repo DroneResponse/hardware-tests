@@ -2,7 +2,22 @@
 
 This runs hardware tests.
 
+## How to run test
+
+```bash
+git clone https://github.com/DroneResponse/hardware-tests.git
+cd hardware-tests
+docker-compose up
+```
+
+## Old Readme
+
+The rest of these docs are somewhat outdated now.
+
+**TODO:** update everything after this line.
+
 ## How to run tests
+
 
 First, start `mavros`:
 
