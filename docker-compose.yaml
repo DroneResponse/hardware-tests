@@ -1,0 +1,22 @@
+version: "3"
+services:
+  mavros:
+    build: .
+    expose:
+      - "11311"
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0"
+    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=/dev/ttyUSB0:921600"]
+    
+    command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=udp-b://:14540@14580"]
+    restart: always
+
+  dr_hardware_tests:
+    build: .
+    depends_on:
+      - mavros
+    environment:
+      - "ROS_MASTER_URI=http://mavros:11311"
+    links:
+      - mavros
+    command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "indoor_sensors.py"]

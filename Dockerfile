@@ -42,7 +42,7 @@ COPY --from=geoid-downloader /usr/share/GeographicLib/geoids /usr/share/Geograph
 COPY --from=builder /tmp/ros/noetic /opt/ros/noetic
 
 
-CMD ["/ros_entrypoint.sh", "/bin/bash"]
+# CMD ["/ros_entrypoint.sh", "bash"]
 
 #install pymavlink
 # RUN pip3 install cython==0.29.24
