@@ -4,11 +4,11 @@ services:
     build: .
     expose:
       - "11311"
-    # devices:
-    #   - "/dev/ttyUSB0:/dev/ttyUSB0"
-    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=/dev/ttyUSB0:921600"]
-    
-    command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=udp-b://:14540@14580"]
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=/dev/ttyUSB0:921600"]
+    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=udp-b://:14540@14580"]
+    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=tcp://intel-aero:5760"]
     restart: always
 
   dr_hardware_tests:
