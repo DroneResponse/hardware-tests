@@ -1,14 +1,23 @@
 version: "3"
 services:
-  mavros:
-    build: .
+  roscore:
+    image: ros:noetic-ros-core
     expose:
       - "11311"
-    devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"
-    command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=/dev/ttyUSB0:921600"]
+    command: stdbuf -o L roscore
+    restart: always
+
+  mavros:
+    build: .
+    depends_on:
+      - roscore
+    environment:
+      - "ROS_MASTER_URI=http://roscore:11311"
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0"
+    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=/dev/ttyUSB0:921600"]
     # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=udp-b://:14540@14580"]
-    # command: ["stdbuf", "--output=L", "roslaunch", "dr_hardware_tests", "mavros.launch", "fcu_url:=tcp://intel-aero:5760"]
+    command: ["stdbuf", "-o", "L", "roslaunch", "mavros", "px4.launch", "tgt_system:=1", "tgt_component:=1", "fcu_url:=tcp://intel-aero:5760"]
     restart: always
 
   dr_hardware_tests:
@@ -16,7 +25,7 @@ services:
     depends_on:
       - mavros
     environment:
-      - "ROS_MASTER_URI=http://mavros:11311"
+      - "ROS_MASTER_URI=http://roscore:11311"
     links:
       - mavros
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "indoor_sensors.py"]
