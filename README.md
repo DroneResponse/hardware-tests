@@ -5,6 +5,8 @@ This runs hardware tests.
 ## How to run test
 
 ```bash
+Install Docker Compose:
+sudo apt install docker-compose
 git clone https://github.com/DroneResponse/hardware-tests.git
 cd hardware-tests
 docker-compose up
