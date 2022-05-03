@@ -2,14 +2,40 @@
 
 This runs hardware tests.
 
-## How to run test
+## How to install
 
 ```bash
-Install Docker Compose:
 sudo apt install docker-compose
 git clone https://github.com/DroneResponse/hardware-tests.git
+```
+
+## How to build
+
+This could take a few minuets. You need an Internet connection.
+```bash
 cd hardware-tests
-docker-compose up
+docker-compose build
+```
+
+## How to run tests
+
+First start mavros in the background
+```bash
+cd hardware-tests
+docker-compose up -d mavros
+```
+
+Next run one or more tests:
+
+```bash
+docker-compose run indoor_sensors
+docker-compose run sensors
+docker-compose run rc_failsafe
+docker-compose run gimbal
+docker-compose run arm
+docker-compose run hover
+docker-compose run box
+docker-compose run geofence
 ```
 
 ## Old Readme
