@@ -116,7 +116,7 @@ def is_user_ready_to_start(data: SensorData):
     chan5_raw = data.rcin.channels[5]
     chan8_raw = data.rcin.channels[8]
 
-    is_chan5_ok = 1380 <= chan5_raw and chan5_raw <= 1480
+    is_chan5_ok = 1320 <= chan5_raw and chan5_raw <= 1480
     is_chan8_ok = chan8_raw < 1500
     return is_chan5_ok and is_chan8_ok
 
