@@ -116,8 +116,8 @@ def is_user_ready_to_start(data: SensorData):
     chan5_raw = data.rcin.channels[5]
     chan8_raw = data.rcin.channels[8]
 
-    is_chan5_ok = 1320 <= chan5_raw and chan5_raw <= 1480
-    is_chan8_ok = chan8_raw < 1500
+    is_chan5_ok = 1320 <= chan5_raw and chan5_raw <= 1480  # offboard mode
+    is_chan8_ok = chan8_raw < 1500  # not in return mode
     return is_chan5_ok and is_chan8_ok
 
 
@@ -139,7 +139,7 @@ def is_user_taking_control(data: SensorData):
     
     if data.rcin is not None:
         chan5_raw = data.rcin.channels[5]
-        return 1160 <= chan5_raw and chan5_raw <= 1320
+        return 1160 <= chan5_raw and chan5_raw <= 1320  # Land mode
     
     return False
 
