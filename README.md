@@ -23,7 +23,7 @@ docker-compose build
 
 Start mavros in the background using one of the following approaches.
 
-1. If using the Jetson, or if mavros connects to PX4 using `/dev/ttyUSB0` then run:
+1. If using the Jetson and mavros connects to PX4 using `/dev/ttyUSB0` then run:
    ```bash
    cd hardware-tests
    docker-compose -f docker-compose.yaml -f docker-compose.jetson.yaml up -d mavros
