@@ -44,6 +44,7 @@ def main():
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
+    sleep(10)  #remain armed for 10 sec
 
     log("setting takeoff altitude to 7.0 meters")
     drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
