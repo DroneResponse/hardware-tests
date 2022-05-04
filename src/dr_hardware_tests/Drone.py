@@ -78,7 +78,6 @@ class FlightMode(str, enum.Enum):
 
 
 class Drone:
-    CIRCULAR_RADIUS = 100
     """sends commands to the drone
     """
     def __init__(self, simulate_gcs_heartbeat=True, init_gimbal=True):
@@ -123,15 +122,20 @@ class Drone:
         self.onboard_heartbeat.mav_state = MavState.ACTIVE
         if self.gimbal:
             self.gimbal.start()
-            
     
-    def set_preflight_params(self):
-        # enable override when in all auto modes and in offboard mode
-        # http://docs.px4.io/master/en/advanced_config/parameter_reference.html#COM_RC_OVERRIDE
-        self.set_param("COM_RC_OVERRIDE", integer_value=0b011)
-        self.set_param("GF_MAX_HOR_DIST", real_value=self.CIRCULAR_RADIUS)
-        self.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
-
+    def check_preflight_params(self):
+        param_good = 0
+        try:
+            if self.get_param("MIS_TAKEOFF_ALT") < 2:
+                param_good = 0b1  #<2 m takeoff is dangerously low
+            if self.get_param("GF_ACTION") == 0:  # don't do nothing for a geo-fench breach
+                param_good |= 0b10
+            if not (5 <= self.get_param("GF_MAX_HOR_DIST") and self.get_param("GF_MAX_HOR_DIST") =< 500):
+                param_good |= 0b100
+            if not (2 <= self.get_param("GF_MAX_VERT_DIST") and self.get_param("GF_MAX_VERT_DIST") =< 400):
+                param_good |= 0b1000
+        except:
+            param_good |= 0b10000
 
     def stop(self):
         pass
