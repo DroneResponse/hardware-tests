@@ -21,7 +21,7 @@ docker-compose build
 
 ### Start mavros
 
-Start mavros in the background using on of the following commands.
+Start mavros in the background using one of the following approaches.
 
 #### Jetson
 
