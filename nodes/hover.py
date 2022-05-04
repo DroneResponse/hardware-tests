@@ -34,7 +34,10 @@ def main():
     sensors.await_condition(is_data_available, 30)
 
     log("setting preflight parameters")
-    drone.set_preflight_params()
+    ret = drone.check_preflight_params()
+    if ret != 0:
+        log("takeoff altitude and geo-fence not set as expected...exiting")
+        return
 
     log("sending arm command")
     drone.arm()
