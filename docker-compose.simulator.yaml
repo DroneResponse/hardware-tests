@@ -1,0 +1,7 @@
+version: '3'
+services:
+  mavros:
+    # For Simulator
+    ports:
+      - "14540:14540/udp"
+    command: ["stdbuf", "-o", "L", "roslaunch", "mavros", "px4.launch", "fcu_url:=udp-b://:14540@14580"]

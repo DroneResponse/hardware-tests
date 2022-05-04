@@ -19,11 +19,40 @@ docker-compose build
 
 ## How to run tests
 
-First start mavros in the background
+### Start mavros
+
+Start mavros in the background using on of the following commands.
+
+#### Jetson
+
+If mavros connects to PX4 using `/dev/ttyUSB0` then run:
+
 ```bash
 cd hardware-tests
-docker-compose up -d mavros
+docker-compose -f docker-compose.yaml -f docker-compose.jetson.yaml up -d mavros
 ```
+
+#### Simulator
+
+If you're simulating the drone, then run:
+
+```bash
+cd hardware-tests
+docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
+```
+
+This configures mavros to use `udp-b://:14540@14580` and it forwards the UDP packets to the container.
+
+#### Intel Aero
+
+If you're running this on the intel aero:
+
+```bash
+cd hardware-tests
+docker-compose -f docker-compose.yaml -f docker-compose.intel-aero.yaml up -d mavros
+```
+
+### Run the tests
 
 Next run one or more tests:
 
@@ -36,6 +65,14 @@ docker-compose run arm
 docker-compose run hover
 docker-compose run box
 docker-compose run geofence
+```
+
+### Stop Mavros
+
+When you're done, stop mavros:
+
+```bash
+docker-compose down
 ```
 
 ## Old Readme
