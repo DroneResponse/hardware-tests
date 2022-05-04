@@ -138,10 +138,15 @@ def main():
     log("waiting for sensors data")
     sensors.await_condition(is_data_available, 30)
 
-    log("setting preflight parameters")
-    drone.set_preflight_params()
+    log("checking preflight parameters")
+    ret = drone.check_preflight_params()
+    if ret != 0:
+        log("takeoff altitude and geo-fence not set as expected...exiting")
+        return
+        
 
     arm(drone, sensors)
+    sleep(10)
     takeoff(drone, sensors)
 
     waypoints_wgs84 = find_waypoints(drone, sensors, 10.0)
