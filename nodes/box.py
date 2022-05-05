@@ -148,6 +148,7 @@ def main():
     arm(drone, sensors)
     sleep(10)
     takeoff(drone, sensors)
+    sleep(5)
 
     waypoints_wgs84 = find_waypoints(drone, sensors, 10.0)
     fly_waypoints(drone, sensors, waypoints_wgs84)
