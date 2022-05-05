@@ -152,7 +152,7 @@ def main():
 
     waypoints_wgs84 = find_waypoints(drone, sensors, 10.0)
     fly_waypoints(drone, sensors, waypoints_wgs84)
-
+    sleep(5)
     land(drone, sensors)
     drone.disarm()
     sensors.await_condition(is_disarmed, 30)
