@@ -124,18 +124,34 @@ class Drone:
             self.gimbal.start()
     
     def check_preflight_params(self):
+        problems = []
         param_good = 0
         try:
             if self.get_param("MIS_TAKEOFF_ALT") < 2:
                 param_good = 0b1  #<2 m takeoff is dangerously low
+                problems.append("PROBLEM: takeoff is dangerously low. You must change the 'MIS_TAKEOFF_ALT' parameter")
             if self.get_param("GF_ACTION") == 0:  # don't do nothing for a geo-fench breach
                 param_good |= 0b10
-            if not (5 <= self.get_param("GF_MAX_HOR_DIST") and self.get_param("GF_MAX_HOR_DIST") =< 500):
+                problems.append('PROBLEM: geofence action is set to "do nothing." You must change the GF_ACTION parameter.\nSee Parameter Reference: https://docs.px4.io/master/en/advanced_config/parameter_reference.html#GF_ACTION\nSee Geofence Failsafe Guide: https://docs.px4.io/master/en/config/safety.html#geofence-failsafe')
+            
+            geofence_max_dist = self.get_param("GF_MAX_HOR_DIST")
+            if not (5 <= geofence_max_dist and geofence_max_dist <= 500):
                 param_good |= 0b100
-            if not (2 <= self.get_param("GF_MAX_VERT_DIST") and self.get_param("GF_MAX_VERT_DIST") =< 400):
+                problems.append('PROBLEM: geofence horizontal distance is invalid. Must be greater than 5 meters and less than 500 meter. You must change the "GF_MAX_HOR_DIST" parameter')
+            
+            geofence_max_vert_dist = self.get_param("GF_MAX_VERT_DIST")
+            if not (2 <= geofence_max_vert_dist and geofence_max_vert_dist <= 400):
                 param_good |= 0b1000
+                problems.append('PROBLEM: geofence vertical distance is invalid. It must be greater than 2 meters and less than 400 meter. You must change the "GF_MAX_VERT_DIST" parameter')
         except:
             param_good |= 0b10000
+            problems.append('PROBLEM: could not check PX4 parameters for safety')
+        
+        if param_good != 0:
+            err_msg = "\n".join(problems)
+            err_msg = "Problem checking PX4 parameters\n" + err_msg
+            rospy.logerr(err_msg)
+        return param_good
 
     def stop(self):
         pass
