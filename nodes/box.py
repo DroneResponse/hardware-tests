@@ -112,6 +112,7 @@ def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
         setpoint_sender.setpoint = setpoint_lla
 
         sensors.await_condition(is_arrived)
+        sleep(5)
     log("done flying waypoints")
 
 
