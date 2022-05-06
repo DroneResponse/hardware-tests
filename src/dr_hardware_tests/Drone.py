@@ -122,36 +122,66 @@ class Drone:
         self.onboard_heartbeat.mav_state = MavState.ACTIVE
         if self.gimbal:
             self.gimbal.start()
-    
+
     def check_preflight_params(self):
-        problems = []
-        param_good = 0
-        try:
-            if self.get_param("MIS_TAKEOFF_ALT") < 2:
-                param_good = 0b1  #<2 m takeoff is dangerously low
-                problems.append("PROBLEM: takeoff is dangerously low. You must change the 'MIS_TAKEOFF_ALT' parameter")
-            if self.get_param("GF_ACTION") == 0:  # don't do nothing for a geo-fench breach
-                param_good |= 0b10
-                problems.append('PROBLEM: geofence action is set to "do nothing." You must change the GF_ACTION parameter.\nSee Parameter Reference: https://docs.px4.io/master/en/advanced_config/parameter_reference.html#GF_ACTION\nSee Geofence Failsafe Guide: https://docs.px4.io/master/en/config/safety.html#geofence-failsafe')
-            
-            geofence_max_dist = self.get_param("GF_MAX_HOR_DIST")
-            if not (5 <= geofence_max_dist and geofence_max_dist <= 500):
-                param_good |= 0b100
-                problems.append('PROBLEM: geofence horizontal distance is invalid. Must be greater than 5 meters and less than 500 meter. You must change the "GF_MAX_HOR_DIST" parameter')
-            
-            geofence_max_vert_dist = self.get_param("GF_MAX_VERT_DIST")
-            if not (2 <= geofence_max_vert_dist and geofence_max_vert_dist <= 400):
-                param_good |= 0b1000
-                problems.append('PROBLEM: geofence vertical distance is invalid. It must be greater than 2 meters and less than 400 meter. You must change the "GF_MAX_VERT_DIST" parameter')
-        except:
-            param_good |= 0b10000
-            problems.append('PROBLEM: could not check PX4 parameters for safety')
+        test_params = {
+            'MIS_TAKEOFF_ALT': {
+                'property': "real",
+                'test': lambda MIS_TAKEOFF_ALT: MIS_TAKEOFF_ALT < 2,
+                'error_message': "The takeoff altitude is dangerously low. It must be higher than 2 meters.",
+                'problems': [],
+            },
+            'GF_ACTION': {
+                'property': "integer",
+                'test': lambda GF_ACTION: GF_ACTION == 0,
+                'error_message': 'geofence action is set to do nothing. This means the UAV  will do nothing if it moves outside the geofence. You must choose a different geofence action',
+                'problems': [],
+            },
+            'GF_MAX_HOR_DIST': {
+                'property': "real",
+                'test': lambda GF_MAX_HOR_DIST: GF_MAX_HOR_DIST < 5 or GF_MAX_HOR_DIST > 500,
+                'error_message': "horizontal geofence distance is invalid. It must be greater than 5 meters and less than 500 meter.",
+                'problems': [],
+            },
+            'GF_MAX_VER_DIST': {
+                'property': "real",
+                'test': lambda GF_MAX_VER_DIST: GF_MAX_VER_DIST < 2 or GF_MAX_VER_DIST > 121.92,
+                'error_message': "vertical geofence distance is invalid. It must be greater than 2 meters and less than 121.92 meters (400 ft).",
+                'problems': [],
+            },
+
+        }
+
+        for param_name, test_data in test_params.items():
+            result: ParamGet = self.get_param(param_name)
+            if not result.success:
+                test_data['problems'].append(f"Could not get {param_name} parameter from PX4")
+            else:
+                test_data['value'] = getattr(result.value, test_data['property'])
         
-        if param_good != 0:
-            err_msg = "\n".join(problems)
-            err_msg = "Problem checking PX4 parameters\n" + err_msg
-            rospy.logerr(err_msg)
-        return param_good
+        for param_name, test_data in test_params.items():
+            if 'value' not in test_data:
+                continue
+            value = test_data['value']
+            bad_result = test_data['test'](value)
+            if bad_result:
+                test_data['problems'].append(f"PROBLEM: {test_data['error_message']}")
+                test_data['problems'].append(f"    You must change: {param_name}")
+                test_data['problems'].append(f"    Found: {param_name} = {value}")
+                test_data['problems'].append(f"    See Parameter Reference: https://docs.px4.io/master/en/advanced_config/parameter_reference.html#{param_name}")
+        
+        problems = []
+        for test_data in test_params.values():
+            for test_err in test_data['problems']:
+                problems.append(test_err)
+        
+        if not problems:
+            return 0
+        else:
+            error_message = "\n".join(problems)
+            rospy.logfatal("Preflight checks failed")
+            rospy.logfatal(error_message)
+            return -1
 
     def stop(self):
         pass
