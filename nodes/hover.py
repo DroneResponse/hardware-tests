@@ -44,7 +44,7 @@ def main():
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
-    sleep(10)  #remain armed for 10 sec
+    sleep(9.5)  #remain armed for about 10 sec
 
     targ_alt = drone.read_takeoff_alt()
     log("sending takeoff command")

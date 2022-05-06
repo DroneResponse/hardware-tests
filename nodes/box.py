@@ -146,7 +146,7 @@ def main():
         
 
     arm(drone, sensors)
-    sleep(10)
+    sleep(9.5)
     takeoff(drone, sensors)
     sleep(5)
 

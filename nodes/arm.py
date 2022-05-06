@@ -36,7 +36,7 @@ def main():
     sensors.await_condition(is_armed, 30)
 
     # Stay armed for some time
-    sleep(10)
+    sleep(9.5)
 
     log("sending disarm command")
     drone.disarm()
