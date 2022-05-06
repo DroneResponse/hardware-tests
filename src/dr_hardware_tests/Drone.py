@@ -1,4 +1,5 @@
 import os
+from .sleepy import sleep
 
 from dr_hardware_tests.gimbal import Gimbal
 os.environ["MAVLINK20"] = "1"
@@ -194,6 +195,14 @@ class Drone:
     
     def get_param(self, param_name):
         return self.services['param_get'].call_service(param_name)
+    
+    def read_takeoff_alt(self):
+        for _ in range(5):
+            result = self.get_param('MIS_TAKEOFF_ALT')
+            if result.success:
+                return result.value.real
+            sleep(0.2)
+        raise Exception("could not read takeoff altitude")
 
     def set_param(self, param_name, real_value=0.0, integer_value=0):
         msg = ParamValue()
