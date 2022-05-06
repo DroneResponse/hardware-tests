@@ -46,12 +46,10 @@ def main():
     sensors.await_condition(is_armed, 30)
     sleep(10)  #remain armed for 10 sec
 
-    log("setting takeoff altitude to 7.0 meters")
-    drone.set_param('MIS_TAKEOFF_ALT', real_value=7.0)
-
+    targ_alt = drone.read_takeoff_alt()
     log("sending takeoff command")
     drone.set_mode(FlightMode.TAKEOFF)
-    is_takeoff_alt_reached = make_func_is_alt_reached(7.0)
+    is_takeoff_alt_reached = make_func_is_alt_reached(targ_alt)
     sensors.await_condition(is_takeoff_alt_reached, 30)
 
     log("hover in loiter mode")
