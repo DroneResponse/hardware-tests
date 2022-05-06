@@ -21,23 +21,24 @@ docker-compose build
 
 ### Start mavros
 
-Start mavros in the background using one of the following approaches.
+Start mavros in the background. First, enter the `hardware-tests` directory:
+```bash
+cd hardware-tests
+```
+Then use one of the following approaches.
 
 1. If using the Jetson and mavros connects to PX4 using `/dev/ttyUSB0` then run:
    ```bash
-   cd hardware-tests
    docker-compose -f docker-compose.yaml -f docker-compose.jetson.yaml up -d mavros
    ```
 2. If using the Simulator, then run:
    ```bash
-   cd hardware-tests
    docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
    ```
    This configures mavros to use `udp-b://:14540@14580` and it forwards the UDP packets to the container.
 
 3. If using the Intel Aero:
    ```bash
-   cd hardware-tests
    docker-compose -f docker-compose.yaml -f docker-compose.intel-aero.yaml up -d mavros
    ```
 
