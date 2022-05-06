@@ -27,7 +27,8 @@ def arm(drone: Drone, sensors: SensorSynchronizer):
 def takeoff(drone: Drone, sensors: SensorSynchronizer):
     # rospy.sleep(1)
 
-    targ_alt = drone.get_param('MIS_TAKEOFF_ALT')
+    
+    targ_alt = drone.read_takeoff_alt()
     log("switching to takeoff mode")
     drone.set_mode(FlightMode.TAKEOFF)
     log("waiting for drone to reach alt")
