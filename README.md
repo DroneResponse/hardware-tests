@@ -15,6 +15,8 @@ This could take a few minuets. You need an Internet connection.
 ```bash
 cd hardware-tests
 docker-compose build
+docker pull ros:noetic-ros-core
+
 ```
 
 ## How to run tests
