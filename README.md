@@ -67,6 +67,54 @@ When you're done, stop mavros:
 docker-compose down
 ```
 
+## Running on the Intel Aero
+
+Install [the latest version of Yacto Linux provided by Intel](https://github.com/intel-aero/meta-intel-aero/wiki/02-Initial-Setup#flashing).
+
+Connect the drone to the internet. [Connect the drone to your WiFi network.](https://github.com/intel-aero/meta-intel-aero/wiki/08-Aero-Network-and-System-Administration#networking-wifi) If needed, fix DNS by editing `/etc/resolv.conf`:
+
+```bash
+vi /etc/resolv.conf
+```
+
+Add a line to the file, like so:
+
+```txt
+nameserver 192.168.1.1
+```
+
+### Install a newer version of Docker
+
+Install `xz`. [Download the source tar ball](https://tukaani.org/xz/) to the drone. Extract it. Build it. Install it. For example:
+
+```bash
+wget --no-check-certificate  https://tukaani.org/xz/xz-5.2.5.tar.gz
+tar xf xz-5.2.5.tar.gz 
+cd xz-5.2.5
+./configure
+make
+make install
+xz --version
+```
+
+[Install the docker binaries.](https://docs.docker.com/engine/install/binaries/) Download the binaries from [download.docker.com/linux/static/stable/](https://download.docker.com/linux/static/stable/). For example:
+
+```bash
+wget https://download.docker.com/linux/static/stable/x86_64/docker-20.10.9.tgz
+tar xf docker-20.10.9.tgz 
+systemctl stop docker
+cp docker/* /usr/bin/
+systemctl start docker
+```
+
+### Install the `docker-compose` binary
+
+Install docker-compose 1.29 as a container. [Instructions Here.](https://github.com/docker/compose/blob/master/INSTALL.md#install-as-a-container)
+
+Option 2. Install docker compose 2.X binary. Didn't try it. [Instructions here](https://docs.docker.com/compose/install/#install-the-binary-manually).
+
+
+
 ## Old Readme
 
 The rest of these docs are somewhat outdated now.
