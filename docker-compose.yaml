@@ -1,7 +1,7 @@
 version: "3"
 services:
   roscore:
-    image: ros:noetic-ros-core
+    build: ./roscore/
     command: stdbuf -o L roscore
     restart: always
 
