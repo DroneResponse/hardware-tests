@@ -1,4 +1,5 @@
 import dataclasses
+import time
 
 import rospy
 
@@ -155,3 +156,21 @@ def get_rc_channel_value(rcin: RCIn, channel_number):
     """
     channel_index = channel_number - 1
     return rcin.channels[channel_index]
+
+class DebounceLogger:
+    def __init__(self, wait=0.75):
+        self.last_time = None
+        self.wait = wait
+        self.log_messages = {}
+    
+    def log(self, msg: str):
+        t = time.monotonic()
+        last_time = t - 2 * self.wait
+        if msg in self.log_messages:
+            last_time = self.log_messages[msg]
+        
+        if last_time + self.wait < t:
+            self.log_messages[msg] = t
+            rospy.loginfo(msg)
+
+user_ready_logger = DebounceLogger()
