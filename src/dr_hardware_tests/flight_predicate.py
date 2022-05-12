@@ -3,6 +3,8 @@ import dataclasses
 import rospy
 
 from droneresponse_mathtools import Lla
+from mavros_msgs.msg import RCIn
+
 
 from .Drone import FlightMode
 from .sensor import SensorData
@@ -113,8 +115,8 @@ def is_user_ready_to_start(data: SensorData):
     """
     if data.rcin is None:
         return False
-    chan5_raw = data.rcin.channels[5]
-    chan8_raw = data.rcin.channels[8]
+    chan5_raw = get_rc_channel_value(data.rcin, 5)
+    chan8_raw = get_rc_channel_value(data.rcin, 8)
 
     is_chan5_ok = 1320 <= chan5_raw and chan5_raw <= 1480  # offboard mode
     is_chan8_ok = chan8_raw < 1500  # not in return mode
@@ -138,12 +140,18 @@ def is_user_taking_control(data: SensorData):
             return True
     
     if data.rcin is not None:
-        chan5_raw = data.rcin.channels[5]
+        chan5_raw = get_rc_channel_value(data.rcin, 5)
         return 1160 <= chan5_raw and chan5_raw <= 1320  # Land mode
     
     return False
 
 
+def get_rc_channel_value(rcin: RCIn, channel_number):
+    """Return the channel PWM value from the RCIn object.
+    Args:
+        rcin the RC inputs from mavros
+        channel_number: the channel to read
 
-    # if the user tries to land using the RC, then we need to exit
-    
+    """
+    channel_index = channel_number - 1
+    return rcin.channels[channel_index]
