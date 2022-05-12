@@ -1,4 +1,4 @@
 version: "3"
 services:
   mavros:
-    command: ["stdbuf", "-o", "L", "roslaunch", "--wait", "mavros", "px4.launch", "fcu_url:=tcp://intel-aero:5760"]
+    command: ["stdbuf", "-o", "L", "roslaunch", "--wait", "mavros", "px4.launch", "fcu_url:=tcp://172.17.0.1:5760"]
