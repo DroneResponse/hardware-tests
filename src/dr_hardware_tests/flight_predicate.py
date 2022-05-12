@@ -115,12 +115,17 @@ def is_user_ready_to_start(data: SensorData):
     they are ready to start the test.
     """
     if data.rcin is None:
+        user_ready_logger.log("is_user_ready_to_start: data.rcin is None")
         return False
+
     chan5_raw = get_rc_channel_value(data.rcin, 5)
     chan8_raw = get_rc_channel_value(data.rcin, 8)
 
     is_chan5_ok = 1320 <= chan5_raw and chan5_raw <= 1480  # offboard mode
     is_chan8_ok = chan8_raw < 1500  # not in return mode
+
+    user_ready_logger.log(f"is_user_ready_to_start: channel 5 = {chan5_raw} is_chan5_ok = {is_chan5_ok}   channel 8 = {chan8_raw} is_chan8_ok = {is_chan8_ok}")
+
     return is_chan5_ok and is_chan8_ok
 
 
