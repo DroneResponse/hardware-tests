@@ -39,11 +39,6 @@ Then use one of the following approaches.
    ```
    This configures mavros to use `udp-b://:14540@14580` and it forwards the UDP packets to the container.
 
-3. If using the Intel Aero:
-   ```bash
-   docker-compose -f docker-compose.yaml -f docker-compose.intel-aero.yaml up -d mavros
-   ```
-
 ### Run the tests
 
 Next run one or more tests:
@@ -68,6 +63,8 @@ docker-compose down
 ```
 
 ## Running on the Intel Aero
+
+These instructions walk you through the special setup that's required to run the hardware tests on the Intel Aero.
 
 Install [the latest version of Yacto Linux provided by Intel](https://github.com/intel-aero/meta-intel-aero/wiki/02-Initial-Setup#flashing).
 
@@ -107,12 +104,43 @@ cp docker/* /usr/bin/
 systemctl start docker
 ```
 
-### Install the `docker-compose` binary
+### Install the `docker compose` binary plugin
 
-Install docker-compose 1.29 as a container. [Instructions Here.](https://github.com/docker/compose/blob/master/INSTALL.md#install-as-a-container)
+Install the `docker compose` 2.X binary. [Instructions here](https://docs.docker.com/compose/install/#install-the-binary-manually).
 
-Option 2. Install docker compose 2.X binary. Didn't try it. [Instructions here](https://docs.docker.com/compose/install/#install-the-binary-manually).
+```bash
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/download/v2.5.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+```
 
+### Starting the programs
+
+Start mavros in the background with:
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.intel-aero.yaml up -d mavros
+```
+
+Then to run the tests:
+
+```bash
+docker compose run --no-deps indoor_sensors
+docker compose run --no-deps sensors
+docker compose run --no-deps rc_failsafe
+docker compose run --no-deps gimbal
+docker compose run --no-deps arm
+docker compose run --no-deps hover
+docker compose run --no-deps box
+docker compose run --no-deps geofence
+```
+
+To stop mavros:
+
+```bash
+docker compose down
+```
 
 
 ## Old Readme
