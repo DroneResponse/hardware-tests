@@ -5,6 +5,7 @@ from dr_hardware_tests.flight_predicate import is_offboard_mode
 import rospy
 
 from dr_hardware_tests import Drone, SensorSynchronizer, SensorData, flight_helpers, sleep
+from dr_hardware_tests import FlightMode
 from dr_hardware_tests import is_user_ready_to_start, start_RC_failsafe
 from dr_hardware_tests.Drone import Drone
 from dr_hardware_tests import SetpointSender
@@ -31,6 +32,17 @@ def send_velocity_zero_setpoints(drone: Drone):
     log("done starting SetpointSender")
     setpoint_sender.velocity = 0.0, 0.0, 0.0
 
+def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer):
+    log("switching to offboard mode")
+    t0 = time.monotonic()
+    drone.set_mode(FlightMode.OFFBOARD)
+
+    log("waiting for PX4 to enter offboard mode")
+    sensors.await_condition(is_offboard_mode, 5)
+    t = time.monotonic() - t0
+    log(f"detected offboard mode after {t} seconds")
+    return t
+
 def main():
     drone, sensors = flight_helpers.start_drone_io()
     send_velocity_zero_setpoints(drone)
@@ -44,23 +56,17 @@ def main():
     log("waiting for sensors to indicate that we're armed")
     sensors.await_condition(is_armed, 30)
 
-    arm_time = time.monotonic()
-    log("waiting for user to enter Offboard mode")
-    sensors.await_condition(is_offboard_mode, 7)
-
+    t = enter_offboard_mode(drone, sensors)
 
     log("starting RC failsafe trigger")
     start_RC_failsafe(sensors)
 
-    # Stay armed for some time
-    up_time = time.monotonic() - arm_time
-    sleep_time = max(9.5 - up_time, 0)
-    sleep(sleep_time)
+    sleep(max(9.5 - t, 5))
 
     log("sending disarm command")
     drone.disarm()
-    sensors.await_condition(is_disarmed, 30)
     log("waiting for sensors to indicate that we're disarmed")
+    sensors.await_condition(is_disarmed, 30)
     log("SUCCESS")
 
 
