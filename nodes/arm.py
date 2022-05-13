@@ -2,6 +2,7 @@
 from threading import Condition
 import time
 from dr_hardware_tests.flight_predicate import is_offboard_mode
+from dr_hardware_tests.flight_helpers import enter_offboard_mode
 import rospy
 
 from dr_hardware_tests import Drone, SensorSynchronizer, SensorData, flight_helpers, sleep
@@ -32,19 +33,6 @@ def send_velocity_zero_setpoints(drone: Drone):
     log("done starting SetpointSender")
     setpoint_sender.velocity = 0.0, 0.0, 0.0
 
-def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer) -> float:
-    """Command PX4 to enter offboard mode. Wait until we sense that we're in Offboard mode.
-    Return how much time it took to switch to offboard mode in seconds.
-    """
-    log("switching to offboard mode")
-    t0 = time.monotonic()
-    drone.set_mode(FlightMode.OFFBOARD)
-
-    log("waiting for PX4 to enter offboard mode")
-    sensors.await_condition(is_offboard_mode, 5)
-    t = time.monotonic() - t0
-    log(f"detected offboard mode after {t} seconds")
-    return t
 
 def main():
     drone, sensors = flight_helpers.start_drone_io()

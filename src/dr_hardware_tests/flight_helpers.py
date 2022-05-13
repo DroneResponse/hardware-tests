@@ -9,6 +9,8 @@ import rospy
 from .sensor import RospyShutdownException, SensorSynchronizer
 from .flight_predicate import is_data_available, is_off_ground, is_posctl_mode
 from .flight_predicate import is_user_taking_control
+from .flight_predicate import is_offboard_mode
+from dr_hardware_tests import FlightMode
 from .sleepy import sleep
 
 
@@ -48,7 +50,16 @@ def start_RC_failsafe(sensors: SensorSynchronizer):
     failsafe_engaged_event.wait()
 
 
+def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer) -> float:
+    """Command PX4 to enter offboard mode. Wait until we sense that we're in Offboard mode.
+    Return how much time it took to switch to offboard mode in seconds.
+    """
+    rospy.loginfo("switching to offboard mode")
+    t0 = time.monotonic()
+    drone.set_mode(FlightMode.OFFBOARD)
 
-
-
-
+    rospy.loginfo("waiting for PX4 to enter offboard mode")
+    sensors.await_condition(is_offboard_mode, 5)
+    t = time.monotonic() - t0
+    rospy.loginfo(f"detected offboard mode after {t} seconds")
+    return t
