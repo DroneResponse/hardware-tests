@@ -61,5 +61,5 @@ def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer) -> float:
     rospy.loginfo("waiting for PX4 to enter offboard mode")
     sensors.await_condition(is_offboard_mode, 5)
     t = time.monotonic() - t0
-    rospy.loginfo(f"detected offboard mode after {t} seconds")
+    rospy.loginfo(f"detected offboard mode after {round(t, 3)} seconds")
     return t
