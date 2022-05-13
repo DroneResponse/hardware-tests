@@ -12,6 +12,8 @@ from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reac
 from dr_hardware_tests import is_disarmed, make_func_is_drone_at_target, is_on_ground
 from dr_hardware_tests import is_user_ready_to_start, start_RC_failsafe
 from dr_hardware_tests import sleep
+from dr_hardware_tests.flight_helpers import enter_offboard_mode
+
 
 
 def log(msg):
@@ -150,16 +152,15 @@ def main():
         return
         
     arm(drone, sensors)
-    arm_time = time.monotonic()
-    log("waiting for user to enter Offboard mode")
-    sensors.await_condition(is_offboard_mode, 7)
+    t = enter_offboard_mode(drone, sensors)
 
     log("starting RC failsafe trigger")
     start_RC_failsafe(sensors)
 
-    up_time = time.monotonic() - arm_time
-    wait_time = max(9.5 - up_time, 7)
+    wait_time = max(9.5 - t, 5)
+    log(f"pausing for {round(wait_time, 2)} seconds before takeoff")
     sleep(wait_time)
+    
     takeoff(drone, sensors)
     sleep(5)
 
