@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 from typing import List
+from dr_hardware_tests.flight_predicate import is_offboard_mode
+import time
 import rospy
 
 from droneresponse_mathtools import Lla, geoid_height
@@ -84,16 +86,9 @@ def ellipsoid_to_amsl(pos: Lla) -> Lla:
 
 
 def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
-                  waypoints_wgs84: List[Lla]):
+                  waypoints_wgs84: List[Lla], setpoint_sender: SetpointSender):
     log("fly_waypoints")
-    log("creating SetpointSender")
-    setpoint_sender: SetpointSender = SetpointSender(drone=drone)
-    log("starting SetpointSender")
-    setpoint_sender.start()
-    log("done starting SetpointSender")
-
-    # We need to send PX4 some setpoints before we enable offboard mode
-    log("setting inital setpoint")
+    
     setpoint_sender.setpoint = ellipsoid_to_amsl(waypoints_wgs84[0])
     log("sleeping for 5 seconds")
     sleep(5)
@@ -131,11 +126,19 @@ def main():
     sensors: SensorSynchronizer = SensorSynchronizer()
     sensors.start()
 
+    log("creating SetpointSender")
+    setpoint_sender: SetpointSender = SetpointSender(drone=drone)
+    log("starting SetpointSender")
+    setpoint_sender.start()
+    log("done starting SetpointSender")
+    # We need to send PX4 some setpoints before we enable offboard mode
+    log("setting inital setpoint")
+    setpoint_sender.velocity = 0.0, 0.0, 0.0
+
+    sleep(1.75)
+
     log("waiting for user to start the test with the RC transmitter")
     sensors.await_condition(is_user_ready_to_start)
-
-    log("starting RC failsafe trigger")
-    start_RC_failsafe(sensors)
 
     log("waiting for sensors data")
     sensors.await_condition(is_data_available, 30)
@@ -146,14 +149,22 @@ def main():
         log("takeoff altitude and geo-fence not set as expected...exiting")
         return
         
-
     arm(drone, sensors)
-    sleep(9.5)
+    arm_time = time.monotonic()
+    log("waiting for user to enter Offboard mode")
+    sensors.await_condition(is_offboard_mode, 7)
+
+    log("starting RC failsafe trigger")
+    start_RC_failsafe(sensors)
+
+    up_time = time.monotonic() - arm_time
+    wait_time = max(9.5 - up_time, 7)
+    sleep(wait_time)
     takeoff(drone, sensors)
     sleep(5)
 
     waypoints_wgs84 = find_waypoints(drone, sensors, 10.0)
-    fly_waypoints(drone, sensors, waypoints_wgs84)
+    fly_waypoints(drone, sensors, waypoints_wgs84, setpoint_sender)
     sleep(5)
     land(drone, sensors)
     drone.disarm()
