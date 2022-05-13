@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import enum
 import queue
 from threading import Event, Lock, Thread
-from typing import Callable, List, TypedDict
+from typing import Callable, List, Tuple, TypedDict
 
 from droneresponse_mathtools import Lla
 
@@ -90,7 +90,8 @@ class Drone:
         for ros_srv in self.services.values():
             rospy.wait_for_service(ros_srv.topic, _SERVICE_TIMEOUT)
 
-        self._setpoint_pub =  rospy.Publisher("mavros/setpoint_position/global", GeoPoseStamped, queue_size=1)
+        self._setpoint_pub     = rospy.Publisher("mavros/setpoint_position/global", GeoPoseStamped, queue_size=1)
+        self._vel_setpoint_pub = rospy.Publisher("mavros/setpoint_raw/local", PositionTarget, queue_size=1)
         self._mavlink_pub = rospy.Publisher("mavlink/to", Mavlink, queue_size=1)
         
         self._heartbeat_senders: List[HeartbeatSender] = []
@@ -289,5 +290,44 @@ class Drone:
         geo_pose_setpoint.pose.orientation.w = q[3]
 
         return geo_pose_setpoint
+    
+    def send_velocity(self, ned_tuple: Tuple[float, float, float]):
+        setpoint = self._build_local_setpoint(*ned_tuple)
+        self._vel_setpoint_pub.publish(setpoint)
+
+    @staticmethod
+    def _build_local_setpoint(north, east, down, is_velocity=True):
+        """
+        Build a PositionTarget object.
+        if is_velocity is True, then the message controls the drone's velcity
+        otherwise it controls the drone's position
+        """
+        # This message is documented here:
+        # http://docs.ros.org/en/api/mavros_msgs/html/msg/PositionTarget.html
+        pos_target = PositionTarget()
+        pos_target.header.stamp = rospy.Time.now()
+        pos_target.coordinate_frame = 1  # FRAME_LOCAL_NED = 1
+
+        # To set the type_mask we need to know what the value means
+        # It's a bit mask. Each bit controls whether or not a field is ignored.
+        # if the bit is 1 then the field corresponding to that bit is ignored
+        #
+        # First we will set all the bits to 1.
+        # Later we will zero out the bits we need
+        pos_target.type_mask = 0b111_111_111_111
+
+        if is_velocity:
+            # we need to zero out the velocity bits
+            pos_target.type_mask = pos_target.type_mask ^ 0b111_000
+            pos_target.velocity.x = north
+            pos_target.velocity.y = east
+            pos_target.velocity.z = down
+        else:
+            # we need to zero out the position bits
+            pos_target.type_mask = pos_target.type_mask ^ 0b111
+            pos_target.position.x = north
+            pos_target.position.y = east
+            pos_target.position.z = down
+        return pos_target
 
     
