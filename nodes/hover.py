@@ -5,9 +5,9 @@
 import dataclasses
 from threading import Condition
 import time
-from dr_hardware_tests.flight_predicate import is_offboard_mode
 import rospy
 
+from dr_hardware_tests.flight_helpers import enter_offboard_mode
 from dr_hardware_tests import Drone, FlightMode, SensorSynchronizer
 from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reached, is_loiter_mode
 from dr_hardware_tests import is_disarmed, is_on_ground
@@ -54,16 +54,13 @@ def main():
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
-    arm_time = time.monotonic()
 
-    log("waiting for user to enter Offboard mode")
-    sensors.await_condition(is_offboard_mode, 7)
+    t = enter_offboard_mode(drone, sensors)
 
     log("starting RC failsafe trigger")
     start_RC_failsafe(sensors)
 
-    up_time = time.monotonic() - arm_time
-    pause_time = max(9.5 - up_time, 5)
+    pause_time = max(9.5 - t, 5)
     sleep(pause_time)  #remain armed for about 10 sec (time since the drone armed)
 
     targ_alt = drone.read_takeoff_alt()
