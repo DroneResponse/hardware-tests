@@ -44,14 +44,14 @@ Then use one of the following approaches.
 Next run one or more tests:
 
 ```bash
-docker-compose run indoor_sensors
-docker-compose run sensors
-docker-compose run rc_failsafe
-docker-compose run gimbal
-docker-compose run arm
-docker-compose run hover
-docker-compose run box
-docker-compose run geofence
+docker-compose run --no-deps indoor_sensors
+docker-compose run --no-deps sensors
+docker-compose run --no-deps rc_failsafe
+docker-compose run --no-deps gimbal
+docker-compose run --no-deps arm
+docker-compose run --no-deps hover
+docker-compose run --no-deps box
+docker-compose run --no-deps geofence
 ```
 
 ### Stop Mavros
