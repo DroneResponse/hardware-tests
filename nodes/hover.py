@@ -4,6 +4,8 @@
 
 import dataclasses
 from threading import Condition
+import time
+from dr_hardware_tests.flight_predicate import is_offboard_mode
 import rospy
 
 from dr_hardware_tests import Drone, FlightMode, SensorSynchronizer
@@ -11,10 +13,17 @@ from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reac
 from dr_hardware_tests import is_disarmed, is_on_ground
 from dr_hardware_tests import start_RC_failsafe, sleep
 from dr_hardware_tests import is_user_ready_to_start
+from dr_hardware_tests import SetpointSender
 
 
 def log(msg):
     rospy.loginfo(f"hover test: {msg}")
+
+def send_velocity_zero_setpoints(setpoint_sender: SetpointSender):
+    log("starting SetpointSender")
+    setpoint_sender.start()
+    log("done starting SetpointSender")
+    setpoint_sender.velocity = 0.0, 0.0, 0.0
 
 
 def main():
@@ -23,12 +32,13 @@ def main():
     sensors = SensorSynchronizer()
     sensors.start()
 
-    log("waiting for user to start the test with the RC transmitter")
-    sensors.await_condition(is_user_ready_to_start)
+    log("creating SetpointSender")
+    setpoint_sender: SetpointSender = SetpointSender(drone=drone)
+    send_velocity_zero_setpoints(setpoint_sender)
+    sleep(1.75)
 
-    log("starting RC failsafe trigger")
-    start_RC_failsafe(sensors)
-    
+    log("waiting for user to start the test with the RC transmitter")
+    sensors.await_condition(is_user_ready_to_start)    
 
     log("waiting for sensor data to come online")
     sensors.await_condition(is_data_available, 30)
@@ -44,7 +54,17 @@ def main():
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
-    sleep(9.5)  #remain armed for about 10 sec
+    arm_time = time.monotonic()
+
+    log("waiting for user to enter Offboard mode")
+    sensors.await_condition(is_offboard_mode, 7)
+
+    log("starting RC failsafe trigger")
+    start_RC_failsafe(sensors)
+
+    up_time = time.monotonic() - arm_time
+    pause_time = max(9.5 - up_time, 5)
+    sleep(pause_time)  #remain armed for about 10 sec (time since the drone armed)
 
     targ_alt = drone.read_takeoff_alt()
     log("sending takeoff command")
