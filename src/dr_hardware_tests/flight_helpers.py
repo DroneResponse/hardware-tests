@@ -17,7 +17,7 @@ def _quit_on_rc_trigger(sensors: SensorSynchronizer, failsafe_engaged_event: Eve
         rospy.loginfo("RC failsafe waiting for data")
         sensors.await_condition(is_data_available)
 
-        rospy.loginfo("RC failsafe engaged")
+        rospy.loginfo("RC failsafe now watching for RC override")
         failsafe_engaged_event.set()
         sensors.await_condition(is_user_taking_control)
     except RospyShutdownException:
