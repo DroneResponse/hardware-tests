@@ -32,7 +32,10 @@ def send_velocity_zero_setpoints(drone: Drone):
     log("done starting SetpointSender")
     setpoint_sender.velocity = 0.0, 0.0, 0.0
 
-def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer):
+def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer) -> float:
+    """Command PX4 to enter offboard mode. Wait until we sense that we're in Offboard mode.
+    Return how much time it took to switch to offboard mode in seconds.
+    """
     log("switching to offboard mode")
     t0 = time.monotonic()
     drone.set_mode(FlightMode.OFFBOARD)
