@@ -49,8 +49,7 @@ def main():
         log("takeoff altitude and geo-fence not set as expected...exiting")
         return
 
-    log("sending arm command")
-    drone.arm()
+    log("please arm the drone")
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
