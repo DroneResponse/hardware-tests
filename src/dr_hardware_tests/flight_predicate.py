@@ -49,7 +49,7 @@ def is_takeoff_or_offboard_mode(data: SensorData):
     return is_takeoff_mode(data) or is_offboard_mode(data)
 
 
-def make_func_is_alt_reached(alt: float, threshold: float = 0.25):
+def make_func_is_alt_reached(alt: float, threshold: float = 1.00):
     def is_takeoff_alt_reached(data: SensorData):
         delta_alt = alt - data.relative_altitude.data
         delta_alt = abs(delta_alt)
@@ -59,7 +59,7 @@ def make_func_is_alt_reached(alt: float, threshold: float = 0.25):
 
 
 def make_func_is_drone_at_target(target_wgs84: Lla,
-                                 threshold_distance_meters: float = 0.25):
+                                 threshold_distance_meters: float = 1.25):
     def is_arrived(data: SensorData):
         lat = data.position.latitude
         lon = data.position.longitude
