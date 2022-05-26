@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:focal
 
 # setup timezone
 RUN echo 'Etc/UTC' > /etc/timezone && \
@@ -11,7 +11,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         build-essential \
         git \
-        meson \
+        python3-pip \
         ninja-build \
         pkg-config \
         gcc \
@@ -19,6 +19,7 @@ RUN apt-get update && \
         systemd && \
      rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install meson
 
 #RUN git clone --recurse-submodules https://github.com/mavlink-router/mavlink-router.git --branch v2
 RUN git clone --recurse-submodules https://github.com/mavlink-router/mavlink-router.git
