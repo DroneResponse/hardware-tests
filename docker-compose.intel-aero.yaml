@@ -3,4 +3,4 @@ services:
   mavlink_router:
     devices:
       - "/dev/ttyS1:/dev/ttyS1"
-    command: ["mavlink-routerd", "/dev/ttyS1:1500000"]
+    command: ["mavlink-routerd", "/dev/ttyS1:921600"]
