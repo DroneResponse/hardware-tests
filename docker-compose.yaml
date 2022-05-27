@@ -3,15 +3,21 @@ services:
   roscore:
     build: ./roscore/
     command: stdbuf -o L roscore
-    restart: always
+  
+  mavlink_router:
+    ports:
+      - "5760:5760/tcp"
+      - "5760:5760/udp"
+    build: ./mavlink-router
 
   mavros:
     build: ./mavros/
     depends_on:
       - roscore
+      - mavlink_router
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
-    restart: always
+    command: ["stdbuf", "-o", "L", "roslaunch", "--wait", "mavros", "px4.launch", "fcu_url:=udp://0.0.0.0:14555@mavlink_router:5760"]
 
   arm:
     build: .

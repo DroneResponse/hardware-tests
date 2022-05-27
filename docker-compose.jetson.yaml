@@ -1,7 +1,6 @@
 version: '3'
 services:
-  mavros:
-    # For companion computer
+  mavlink_router:
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-    command: ["stdbuf", "-o", "L", "roslaunch", "--wait", "mavros", "px4.launch", "fcu_url:=/dev/ttyUSB0:921600"]
+    command: ["mavlink-routerd", "/dev/ttyUSB0:921600"]
