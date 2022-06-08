@@ -90,3 +90,16 @@ services:
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "sensors.py"]
+
+  dev_test:
+    build: .
+    depends_on:
+      - roscore
+      - mavros
+    environment:
+      - "ROS_MASTER_URI=http://roscore:11311"
+    volumes:
+      - ./nodes:/opt/ros/noetic/lib/dr_hardware_tests
+      - ./src/dr_hardware_tests/:/opt/ros/noetic/lib/python3/dist-packages/dr_hardware_tests
+      - ./launch:/opt/ros/noetic/share/dr_hardware_tests/launch
+    command: ["stdbuf", "--output=L", "bash"]

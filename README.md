@@ -55,6 +55,7 @@ docker-compose run --no-deps geofence
 ```
 
 Notes:
+
 - the hover test expect you to arm the drone using the RC controller
 - the box test expect you to arm with the RC controller
 
@@ -159,6 +160,38 @@ Start mavros as you normally would:
 docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
 ```
 
+Change the files in the current directory.
+
+Next you have two options:
+
+1. Use the `dev_test` service (this is the recommended option)
+2. Run another service and copy the files by hand.
+
+### Use the dev_test service
+
+When you're ready, run one or more tests using the `dev_test` service. This mounts the appropriate directories in the container, and gives you a bash shell where you can run the tests. Start the container with:
+
+```bash
+docker compose run --no-deps dev_test
+```
+
+From within the bash shell that starts, you can run any of the tests with one of the following lines:
+
+```bash
+/ros_entrypoint.sh rosrun dr_hardware_tests arm.py
+/ros_entrypoint.sh rosrun dr_hardware_tests box.py
+/ros_entrypoint.sh rosrun dr_hardware_tests geofence.py
+/ros_entrypoint.sh rosrun dr_hardware_tests gimbal.py
+/ros_entrypoint.sh rosrun dr_hardware_tests hover.py
+/ros_entrypoint.sh rosrun dr_hardware_tests indoor_sensors.py
+/ros_entrypoint.sh rosrun dr_hardware_tests rc_failsafe.py
+/ros_entrypoint.sh rosrun dr_hardware_tests sensors.py
+```
+
+To make more changes, update the files in the host's file system and the container will see any changes immediately.
+
+### Update files by hand
+
 Use `docker-compose run` to start a container to run tests with:
 
 ```bash
@@ -168,11 +201,13 @@ docker-compose run --no-deps hover bash
 The example above starts the hover container, but since you're starting a bash shell, you can run every test from this container.
 
 From another shell, use `docker ps` to find the test container's name:
+
 ```bash
 docker ps --format "{{.ID}}\t{{.Image}}\t{{.Names}}"
 ```
 
 In my case the output looks like this:
+
 ```
 7e5994b03c77    hardware-tests_hover    hardware-tests_hover_run_8aec6ba25a1e
 90ef760fa1c9    hardware-tests_mavros   hardware-tests_mavros_1
@@ -180,7 +215,7 @@ In my case the output looks like this:
 1921a342ab27    hardware-tests_mavlink_router   hardware-tests_mavlink_router_1
 ```
 
-Find the the name of the test container, in my caes it's `hardware-tests_hover_run_8aec6ba25a1e`
+Find the the name of the test container, in my case it's `hardware-tests_hover_run_8aec6ba25a1e`
 
 Now use `docker cp` to move files from the host file system to the test container. These are the directories of note:
 
@@ -264,7 +299,7 @@ In a terminal, we need to execute the following command to run the docker image 
 sudo docker run --rm -it --device=/dev/ttyUSB0 test
 
 ```
-The terminal will enter the docker container's work directory which is catkin_ws. The terminal should show something similar to **root@c5b2f3541681:/catkin_ws#**. We need to copy the hostname. Then in a separate terminal, the follwing command needs to be executed:
+The terminal will enter the docker container's work directory which is catkin_ws. The terminal should show something similar to **root@c5b2f3541681:/catkin_ws#**. We need to copy the hostname. Then in a separate terminal, the following command needs to be executed:
 
 ```bash
 sudo docker exec -it c5b2f3541681 bash
@@ -276,13 +311,13 @@ Then the second terminal will also enter the same docker container. **/dev/ttyUS
 ls /dev/ttyUSB*
 
 ```
-To run the code, in the first temrinal, launch the mavros and ROS master using this command:
+To run the code, in the first terminal, launch the mavros and ROS master using this command:
 
 ```bash
 roslaunch dr_hardware_tests mavros.launch
 
 ```
-The launch file is located under catkin_ws/src/dr_hardware_tests/launch/mavros.launch. The code has been tested using baudrate of 921600 following the instructions on this [documentation](https://docs.px4.io/master/en/companion_computer/pixhawk_companion.html). For any other baud rate, the following line in the launch file needs to be modified:
+The launch file is located under catkin_ws/src/dr_hardware_tests/launch/mavros.launch. The code has been tested using a baud-rate of 921600 following the instructions on this [documentation](https://docs.px4.io/master/en/companion_computer/pixhawk_companion.html). For any other baud rate, the following line in the launch file needs to be modified:
 
 ```bash
 <arg name="fcu_url" default="/dev/ttyUSB0:921600"/>
@@ -300,13 +335,13 @@ rosrun dr_hardware_tests box.py
 ```
 If there are changes to the code in the repository, the following instructions can be followed to create a new docker image.
 
-The Dockerfile is copying a work directory named catkin_ws which is on the Jetson's home directory. In catkin/src/dr_hardware_tests, the code needs to be updated. The easiest way to do it is to delete the old **dr_hardware_tests** directory, copy the **hardware-tests** directory and rename it to **dr_hardware_tests**. Then the followng commands can be used to build the new image.
+The Dockerfile is copying a work directory named catkin_ws which is on the Jetson's home directory. In catkin/src/dr_hardware_tests, the code needs to be updated. The easiest way to do it is to delete the old **dr_hardware_tests** directory, copy the **hardware-tests** directory and rename it to **dr_hardware_tests**. Then the following commands can be used to build the new image.
 
 ```bash
 sudo docker build .
 
 ```
-After successculd build, the image will have an id similar to c5b2f3541681. For ease of use, we can tag it to something (e.g. test) using this command:
+After a successful build, the image will have an id similar to c5b2f3541681. For ease of use, we can tag it to something (e.g. test) using this command:
 
 ```bash
 sudo docker tag c5b2f3541681 test
