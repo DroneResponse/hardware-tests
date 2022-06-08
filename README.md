@@ -54,6 +54,10 @@ docker-compose run --no-deps box
 docker-compose run --no-deps geofence
 ```
 
+Notes:
+- the hover test expect you to arm the drone using the RC controller
+- the box test expect you to arm with the RC controller
+
 ### Stop Mavros
 
 When you're done, stop mavros:
@@ -142,6 +146,80 @@ To stop mavros:
 docker compose down
 ```
 
+## How to update files in place
+
+Use these instructions if:
+
+- you want to update a source file
+- you're running these tests on the companion computer and you don't have internet (so you can't run docker build)
+
+Start mavros as you normally would:
+
+```bash
+docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
+```
+
+Use `docker-compose run` to start a container to run tests with:
+
+```bash
+docker-compose run --no-deps hover bash
+```
+
+The example above starts the hover container, but since you're starting a bash shell, you can run every test from this container.
+
+From another shell, use `docker ps` to find the test container's name:
+```bash
+docker ps --format "{{.ID}}\t{{.Image}}\t{{.Names}}"
+```
+
+In my case the output looks like this:
+```
+7e5994b03c77    hardware-tests_hover    hardware-tests_hover_run_8aec6ba25a1e
+90ef760fa1c9    hardware-tests_mavros   hardware-tests_mavros_1
+09b46f500770    hardware-tests_roscore  hardware-tests_roscore_1
+1921a342ab27    hardware-tests_mavlink_router   hardware-tests_mavlink_router_1
+```
+
+Find the the name of the test container, in my caes it's `hardware-tests_hover_run_8aec6ba25a1e`
+
+Now use `docker cp` to move files from the host file system to the test container. These are the directories of note:
+
+- The files in the `nodes` directory are found in the container at `/opt/ros/noetic/lib/dr_hardware_tests`
+- The files in `src/dr_hardware_tests/` are in the container at `/opt/ros/noetic/lib/python3/dist-packages/dr_hardware_tests`
+- The launch files are in the container at `/opt/ros/noetic/share/dr_hardware_tests/launch`
+
+For example, to update the file `src/dr_hardware_tests/flight_predicate.py` you would
+
+1. Change `src/dr_hardware_tests/flight_predicate.py` using your favorite editor
+2. Update the file with
+   ```bash
+   docker cp src/dr_hardware_tests/flight_predicate.py  hardware-tests_hover_run_8aec6ba25a1e:/opt/ros/noetic/lib/python3/dist-packages/dr_hardware_tests/flight_predicate.py
+   ```
+   The pattern is
+   ```bash
+   docker cp FILE_PATH CONTAINER_NAME:CONTAINER_PATH 
+   ```
+   In the example above
+   ```
+   FILE_PATH=src/dr_hardware_tests/flight_predicate.py
+   CONTAINER_NAME=hardware-tests_hover_run_8aec6ba25a1e
+   CONTAINER_PATH=/opt/ros/noetic/lib/python3/dist-packages/dr_hardware_tests/flight_predicate.py
+   ```
+
+After you've updated all the files, you can run one or more tests using the shell you ran `docker run` from.
+
+For example, here are all the tests you could run:
+
+```bash
+/ros_entrypoint.sh rosrun dr_hardware_tests arm.py
+/ros_entrypoint.sh rosrun dr_hardware_tests box.py
+/ros_entrypoint.sh rosrun dr_hardware_tests geofence.py
+/ros_entrypoint.sh rosrun dr_hardware_tests gimbal.py
+/ros_entrypoint.sh rosrun dr_hardware_tests hover.py
+/ros_entrypoint.sh rosrun dr_hardware_tests indoor_sensors.py
+/ros_entrypoint.sh rosrun dr_hardware_tests rc_failsafe.py
+/ros_entrypoint.sh rosrun dr_hardware_tests sensors.py
+```
 
 ## Old Readme
 
