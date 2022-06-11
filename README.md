@@ -154,18 +154,23 @@ Use these instructions if:
 - you want to update a source file
 - you're running these tests on the companion computer and you don't have internet (so you can't run docker build)
 
+Change the files in the working directory.
+
 Start mavros as you normally would:
 
-```bash
-docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
-```
-
-Change the files in the current directory.
+1. If using the Jetson and mavros connects to PX4 using `/dev/ttyUSB0` then run:
+   ```bash
+   docker-compose -f docker-compose.yaml -f docker-compose.jetson.yaml up -d mavros
+   ```
+2. If using the Simulator, then run:
+   ```bash
+   docker-compose -f docker-compose.yaml -f docker-compose.simulator.yaml up -d mavros
+   ```
 
 Next you have two options:
 
-1. Use the `dev_test` service (this is the recommended option)
-2. Run another service and copy the files by hand.
+1. Use the `dev_test` service to run tests (this is the **recommended** option)
+2. Run the tests in another service and copy the files by hand.
 
 ### Use the dev_test service
 
