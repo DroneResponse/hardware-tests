@@ -177,7 +177,7 @@ Next you have two options:
 When you're ready, run one or more tests using the `dev_test` service. This mounts the appropriate directories in the container, and gives you a bash shell where you can run the tests. Start the container with:
 
 ```bash
-docker compose run --no-deps dev_test
+docker-compose run --no-deps dev_test
 ```
 
 From within the bash shell that starts, you can run any of the tests with one of the following lines:
