@@ -52,7 +52,7 @@ def main():
     
     ## 1) turn 90 degrees around the front axis
     axis = (1, 0, 0)
-    angle = 90
+    angle = 40
     q1 = quaternion_about_axis(math.radians(angle), axis)
 
     ## 2) turn 90 degrees around the right axis
