@@ -78,7 +78,7 @@ def main():
 
     all_quaternions = [q1, q2, q3, q4, q5]
     log_messages = [
-        "roll gimbal right 90 degrees (rotate around the front axis)",
+        "roll gimbal right 40 degrees (rotate around the front axis)",
         "tilt gimbal up 90 degrees (rotate around the right axis)",
         "turn gimbal right 90 degrees (rotate around the down axis)",
         "turn gimbal right 90 degrees and look down 45 degrees",
