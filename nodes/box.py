@@ -2,6 +2,7 @@
 from typing import List
 from dr_hardware_tests.flight_predicate import is_offboard_mode
 import time
+from dr_hardware_tests.trajectory_generator import TrajectoryGenerator, TrajectorySender, make_TrajectoryGenerator
 import rospy
 
 from droneresponse_mathtools import Lla, geoid_height
@@ -14,6 +15,8 @@ from dr_hardware_tests import is_user_ready_to_start, start_RC_failsafe
 from dr_hardware_tests import sleep
 from dr_hardware_tests.flight_helpers import enter_offboard_mode
 
+
+SPEED = 2.5
 
 
 def log(msg):
@@ -30,7 +33,7 @@ def arm(drone: Drone, sensors: SensorSynchronizer):
 def takeoff(drone: Drone, sensors: SensorSynchronizer):
     # rospy.sleep(1)
 
-    
+
     targ_alt = drone.read_takeoff_alt()
     log("switching to takeoff mode")
     drone.set_mode(FlightMode.TAKEOFF)
@@ -86,29 +89,52 @@ def ellipsoid_to_amsl(pos: Lla) -> Lla:
     return Lla(pos.latitude, pos.longitude, amsl_alt)
 
 
-def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
-                  waypoints_wgs84: List[Lla], setpoint_sender: SetpointSender):
-    log("fly_waypoints")
+def read_drone_position_ellipsoid(sensors: SensorSynchronizer):
+    current_pos = sensors.sensor_data().position
+    return Lla(current_pos.latitude, current_pos.longitude, current_pos.altitude)
+
+def fly_to_waypoint(stop_pos: Lla, drone: Drone,
+                    sensors: SensorSynchronizer,
+                    setpoint_sender: SetpointSender,
+                    trajectory_factory: TrajectoryGenerator):
+    is_arrived = make_func_is_drone_at_target(stop_pos)
+    start_pos = read_drone_position_ellipsoid(sensors)
     
-    setpoint_sender.setpoint = ellipsoid_to_amsl(waypoints_wgs84[0])
+    
+    s, duration = trajectory_factory.make(start_pos, stop_pos, SPEED)
+    
+    sender = TrajectorySender(s, duration, setpoint_sender)
+    sender.start()
+    
+    sensors.await_condition(is_arrived)
+    sender.join()
+
+
+def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
+                  waypoints_wgs84: List[Lla], setpoint_sender: SetpointSender,
+                  trajectory_factory: TrajectoryGenerator):
+    log("fly_waypoints")
+
+    # switch to offboard mode
+    current_pos = read_drone_position_ellipsoid(sensors)
+    setpoint_sender.setpoint = ellipsoid_to_amsl(current_pos)
     log("sleeping for 5 seconds")
     sleep(5)
     log("switching to offboard mode")
     drone.set_mode(FlightMode.OFFBOARD)
+    sleep(3)
+
     waypoint_names = [
         "square center", "north", "east", "south", "west", "north",
         "square center", "home"
     ]
     for i in range(len(waypoints_wgs84)):
         target_lla = waypoints_wgs84[i]
-        is_arrived = make_func_is_drone_at_target(target_lla)
-
-        setpoint_lla = ellipsoid_to_amsl(target_lla)
-        log(f"flying to the {waypoint_names[i]} waypoint (#{i} of {len(waypoint_names)}) at {setpoint_lla}")
-        setpoint_sender.setpoint = setpoint_lla
-
-        sensors.await_condition(is_arrived)
+        log(f"flying to the {waypoint_names[i]} waypoint (#{i} of {len(waypoint_names)}) at {ellipsoid_to_amsl(target_lla)}")
+        fly_to_waypoint(target_lla, drone, sensors, setpoint_sender, trajectory_factory)
+        log(f"Hovering at waypoint '{waypoint_names[i]}'")
         sleep(5)
+
     log("done flying waypoints")
 
 
@@ -126,6 +152,8 @@ def main():
     drone.start()
     sensors: SensorSynchronizer = SensorSynchronizer()
     sensors.start()
+
+    trajectory_factory = make_TrajectoryGenerator(drone)
 
     log("creating SetpointSender")
     setpoint_sender: SetpointSender = SetpointSender(drone=drone)
@@ -149,7 +177,7 @@ def main():
     if ret != 0:
         log("takeoff altitude and geo-fence not set as expected...exiting")
         return
-        
+
     arm(drone, sensors)
     t = enter_offboard_mode(drone, sensors)
 
@@ -159,12 +187,12 @@ def main():
     wait_time = max(9.5 - t, 5)
     log(f"pausing for {round(wait_time, 2)} seconds before takeoff")
     sleep(wait_time)
-    
+
     takeoff(drone, sensors)
     sleep(5)
 
     waypoints_wgs84 = find_waypoints(drone, sensors, 10.0)
-    fly_waypoints(drone, sensors, waypoints_wgs84, setpoint_sender)
+    fly_waypoints(drone, sensors, waypoints_wgs84, setpoint_sender, trajectory_factory)
     sleep(5)
     land(drone, sensors)
     drone.disarm()

@@ -187,6 +187,9 @@ class TrajectorySender:
         self._message_queue.put(_Message.STOP)
         if await_stop:
             self._update_thread.join()
+    
+    def join(self):
+        self._update_thread.join()
 
     def _run(self):
         def stop_callback():
@@ -199,7 +202,7 @@ class TrajectorySender:
         self._setpoint_sender.setpoint = self._s(t)
         while not rospy.is_shutdown() and t < self._duration:
             message: _Message = self._message_queue.get()
-            if message.message_type == _Message.STOP:
+            if message == _Message.STOP:
                 break
             elif message == _Message.SEND_NOW:
                 t = time.time() - start_time
