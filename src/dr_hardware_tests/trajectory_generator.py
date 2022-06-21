@@ -188,7 +188,6 @@ class TrajectorySender:
         if await_stop:
             self._update_thread.join()
 
-
     def _run(self):
         def stop_callback():
             self.stop(await_stop=False)
@@ -201,15 +200,17 @@ class TrajectorySender:
         while not rospy.is_shutdown() and t < self._duration:
             message: _Message = self._message_queue.get()
             if message.message_type == _Message.STOP:
-                return
+                break
             elif message == _Message.SEND_NOW:
                 t = time.time() - start_time
                 self._setpoint_sender.setpoint = self._s(t)
             else:
                 rospy.logerr(f"Unknown message type {message}.")
+        if not self._stop_event.is_set():
+            self._stop_event.set()   
     
     def _run_timer(self):
-        message = _Message(message_type=_Message.SEND_NOW)
+        message = _Message.SEND_NOW
         rate = rospy.Rate(self._send_frequency)
         while not rospy.is_shutdown() and not self._stop_event.is_set():
             try:
@@ -218,19 +219,3 @@ class TrajectorySender:
                 rate.sleep()
             except rospy.ROSInterruptException:
                 pass
-    
-def fly_trajectory(s, duration: float, setpoint_sender: SetpointSender):
-    result = Event()
-    def fly():
-        start_time = time.time()
-        end_time = start_time + duration
-
-        t = 0
-        while start_time + t < end_time:
-            setpoint_sender.lla = s(t)
-            time.sleep(0.05)
-            t = time.time() - start_time
-        result.set()            
-
-    thread = Thread(target=fly)
-    thread.start()
