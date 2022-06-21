@@ -1,11 +1,12 @@
 from builtins import round
-from unittest import mock
-from unittest.mock import NonCallableMock, Mock, patch
+from unittest.mock import NonCallableMock, Mock, PropertyMock, patch, call
 import unittest
 
 import numpy as np
-
+from rospy import Rate
 from droneresponse_mathtools import Lla, geoid_height
+
+from dr_hardware_tests.SetpointSender import SetpointSender
 from dr_hardware_tests.trajectory_generator import TrajectoryFunction, TrajectoryGenerator, TrajectorySender, amsl_to_ellipsoid, ellipsoid_to_amsl
 
 class TestTrajectoryGenerator(unittest.TestCase):
@@ -96,4 +97,48 @@ class TestTrajectoryGenerator(unittest.TestCase):
         
         # make sure we reach max jerk
         self.assertIn(4.0, jerk_plot)
+
+    @patch('dr_hardware_tests.trajectory_generator.time.time')
+    @patch('dr_hardware_tests.trajectory_generator.rospy')
+    def test_trajectory_sender(self, rospy: Mock, time: Mock):
+        """
+        Test typical use of the trajectory sender.
+
+        Run a trajectory sender with a real trajectory.
+        Make sure it updates the setpoint as it should
+        """
+        rospy.Rate = Mock(spec=Rate)
+        
+        trajectory_factory = TrajectoryGenerator(
+            max_horizontal_acceleration=2.0,
+            max_up_acceleration=2.0,
+            max_down_acceleration=2.0,
+            max_jerk=4.0)
+        
+        # Start position at the ND testing field:
+        start_pos = amsl_to_ellipsoid(Lla(41.71484711400101, -86.24179959559793, 230.5533))
+        stop_pos = start_pos.move_ned(0, -25, 0)
+        s, duration = trajectory_factory.make(start_pos, stop_pos, speed=5.0)
+
+        send_freq = 20
+        time_plot = np.arange(0.0, duration + 1/send_freq, 1/send_freq)
+        time.side_effect = [10.0 + float(t) for t in time_plot]
+
+        setpoint_sender = NonCallableMock(SetpointSender)
+        setpoint_out = PropertyMock()
+        type(setpoint_sender).setpoint = setpoint_out
+        sender = TrajectorySender(s, duration, setpoint_sender, send_frequency=send_freq)
+        sender.start()
+        sender._update_thread.join()
+
+        self.assertFalse(sender._update_thread.is_alive()) 
+        self.assertFalse(sender._timer_thread.is_alive()) 
+
+        for i, actual_call in enumerate(setpoint_out.call_args_list):
+            t = time_plot[i]
+            actual_lla = actual_call[0][0]
+            expected_lla = s(t)
+            self.assertLlaAlmostEqual(actual_lla, expected_lla)
+
+
 
