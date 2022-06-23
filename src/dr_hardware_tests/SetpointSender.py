@@ -37,7 +37,7 @@ class _Message:
 
 
 class SetpointSender:
-    def __init__(self, drone: Drone, send_frequency:float=25.0):
+    def __init__(self, drone: Drone, send_frequency:float=10.0):
         self._drone: Drone = drone
         self._message_queue:Queue = Queue()
         self._setpoint: Lla = None
