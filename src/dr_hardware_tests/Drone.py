@@ -291,12 +291,12 @@ class Drone:
 
         return geo_pose_setpoint
     
-    def send_velocity(self, ned_tuple: Tuple[float, float, float]):
-        setpoint = self._build_local_setpoint(*ned_tuple)
+    def send_velocity(self, ned_tuple: Tuple[float, float, float], yaw = 0.0):
+        setpoint = self._build_local_setpoint(*ned_tuple, yaw=yaw)
         self._vel_setpoint_pub.publish(setpoint)
 
     @staticmethod
-    def _build_local_setpoint(north, east, down, is_velocity=True):
+    def _build_local_setpoint(north, east, down, is_velocity=True, yaw=0.0):
         """
         Build a PositionTarget object.
         if is_velocity is True, then the message controls the drone's velcity
@@ -328,6 +328,8 @@ class Drone:
             pos_target.position.x = north
             pos_target.position.y = east
             pos_target.position.z = down
+        
+        pos_target.yaw = yaw
         return pos_target
 
     
