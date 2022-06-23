@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+import math
 
 from dataclasses import dataclass
 from queue import Queue
@@ -11,6 +12,7 @@ import rospy
 from droneresponse_mathtools import Lla, Position
 
 from .Drone import Drone
+from .flight_helpers import compass_to_enu_up
 
 
 class _Flag(enum.Enum):
@@ -18,6 +20,8 @@ class _Flag(enum.Enum):
     SET_SETPOINT = enum.auto()
     GET_VELOCITY = enum.auto()
     SET_VELOCITY = enum.auto()
+    GET_YAW = enum.auto()
+    SET_YAW = enum.auto()
     SEND_NOW = enum.auto()
     STOP = enum.auto()
 
@@ -26,17 +30,19 @@ class _Message:
     flag: _Flag
     setpoint: Position = None
     velocity: Tuple[float, float, float] = None
+    yaw: float = None
     data_channel: Queue = None
     done_event: Event = None
 
 
 
 class SetpointSender:
-    def __init__(self, drone: Drone, send_frequency:float=10.0):
+    def __init__(self, drone: Drone, send_frequency:float=25.0):
         self._drone: Drone = drone
         self._message_queue:Queue = Queue()
         self._setpoint: Lla = None
         self._velocity: Tuple[float, float, float] = None
+        self._yaw: float = 0.0
         self._mode = None
         self._sender_thread = Thread(target=self._run)
 
@@ -86,6 +92,30 @@ class SetpointSender:
         message = _Message(flag=_Flag.SET_VELOCITY, velocity=ned, done_event=done_event)
         self._message_queue.put(message)
         done_event.wait()
+    
+    @property
+    def yaw(self) -> float:
+        result_channel = Queue()
+        message = _Message(flag=_Flag.GET_YAW, data_channel=result_channel)
+        self._message_queue.put(message)
+        return result_channel.get(timeout=1.0)
+
+    @yaw.setter
+    def yaw(self, yaw_degrees: float):
+        if yaw_degrees is None:
+            raise TypeError("yaw_degrees cannot be none")
+        
+        yaw_degrees = float(yaw_degrees)
+        if yaw_degrees <= -180.0 or yaw_degrees > 360.0:
+            rospy.logwarn(f"Setting yaw to: {yaw_degrees} degrees.")
+        else:
+            rospy.loginfo(f"Setting yaw to: {yaw_degrees} degrees.")
+        yaw_degrees = compass_to_enu_up(yaw_degrees)
+        yaw = math.radians(yaw_degrees)
+        done_event = Event()
+        message = _Message(flag=_Flag.SET_YAW, yaw=yaw, done_event=done_event)
+        self._message_queue.put(message)
+        done_event.wait()
 
     def _run(self):
         def stop_callback():
@@ -124,12 +154,18 @@ class SetpointSender:
                     # copy it
                     getter_return_value = tuple(self._velocity)
                 message.data_channel.put(getter_return_value)
+            
+            elif message.flag == _Flag.GET_YAW:
+                message.data_channel.put(self._yaw)
+            
+            elif message.flag == _Flag.SET_YAW:
+                self._yaw = message.yaw
                 
             elif message.flag == _Flag.SEND_NOW:
                 if self._setpoint is not None:
-                    self._drone.send_setpoint(self._setpoint)
+                    self._drone.send_setpoint(self._setpoint, yaw=self._yaw)
                 elif self._velocity is not None:
-                    self._drone.send_velocity(self._velocity)
+                    self._drone.send_velocity(self._velocity, yaw=self._yaw)
             
             if message.done_event is not None:
                 message.done_event.set()

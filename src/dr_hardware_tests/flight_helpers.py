@@ -5,12 +5,16 @@ from typing import Tuple
 from dr_hardware_tests.Drone import Drone
 
 import rospy
+import math
+import tf
+import tf.transformations
+from droneresponse_mathtools import Lla, geoid_height
 
 from .sensor import RospyShutdownException, SensorSynchronizer
 from .flight_predicate import is_data_available, is_off_ground, is_posctl_mode
 from .flight_predicate import is_user_taking_control
 from .flight_predicate import is_offboard_mode
-from dr_hardware_tests import FlightMode
+from dr_hardware_tests import FlightMode, SensorData
 from .sleepy import sleep
 
 
@@ -63,3 +67,26 @@ def enter_offboard_mode(drone: Drone, sensors: SensorSynchronizer) -> float:
     t = time.monotonic() - t0
     rospy.loginfo(f"detected offboard mode after {round(t, 3)} seconds")
     return t
+
+
+def read_lla(sensor_data: SensorData):
+    """
+    Return the drone's position with altitude specified as meters above the ellipsoid
+    """
+    pos = sensor_data.position
+    return Lla(pos.latitude, pos.longitude, pos.altitude)
+
+
+def enu_up_angle_to_compass(euler_angles_deg: float) -> float:
+        x = 90 - euler_angles_deg
+        return x % 360
+
+def compass_to_enu_up(compass_heading_deg: float) -> float:
+    return 90 - compass_heading_deg
+
+def read_heading(sensor_data: SensorData):
+    q = sensor_data.imu.orientation
+    quaternion_angles = [q.x, q.y, q.z, q.w]
+    euler_angles = tf.transformations.euler_from_quaternion(quaternion_angles)
+    up_angle = math.degrees(euler_angles[2])
+    return enu_up_angle_to_compass(up_angle)

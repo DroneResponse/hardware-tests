@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from typing import List
-from dr_hardware_tests.flight_predicate import is_offboard_mode
 import time
 from dr_hardware_tests.trajectory_generator import TrajectoryGenerator, TrajectorySender, make_TrajectoryGenerator
 import rospy
+
 
 from droneresponse_mathtools import Lla, geoid_height
 
@@ -13,7 +13,8 @@ from dr_hardware_tests import is_data_available, is_armed, make_func_is_alt_reac
 from dr_hardware_tests import is_disarmed, make_func_is_drone_at_target, is_on_ground
 from dr_hardware_tests import is_user_ready_to_start, start_RC_failsafe
 from dr_hardware_tests import sleep
-from dr_hardware_tests.flight_helpers import enter_offboard_mode
+from dr_hardware_tests.flight_helpers import enter_offboard_mode, read_heading, read_lla
+from dr_hardware_tests.flight_predicate import is_offboard_mode
 
 
 SPEED = 2.5
@@ -43,10 +44,6 @@ def takeoff(drone: Drone, sensors: SensorSynchronizer):
     sensors.await_condition(is_takeoff_alt_reached, 30)
     log("takeoff complete")
 
-
-def read_lla(sensor_data: SensorData):
-    pos = sensor_data.position
-    return Lla(pos.latitude, pos.longitude, pos.altitude)
 
 
 def find_waypoints_pure(square_center_pos: Lla, rel_alt: float, alt: float):
@@ -89,19 +86,15 @@ def ellipsoid_to_amsl(pos: Lla) -> Lla:
     return Lla(pos.latitude, pos.longitude, amsl_alt)
 
 
-def read_drone_position_ellipsoid(sensors: SensorSynchronizer):
-    current_pos = sensors.sensor_data().position
-    return Lla(current_pos.latitude, current_pos.longitude, current_pos.altitude)
-
 def fly_to_waypoint(stop_pos: Lla, drone: Drone,
                     sensors: SensorSynchronizer,
                     setpoint_sender: SetpointSender,
                     trajectory_factory: TrajectoryGenerator):
     is_arrived = make_func_is_drone_at_target(stop_pos)
-    start_pos = read_drone_position_ellipsoid(sensors)
+    start_pos_ellipsoid = read_lla(sensors.sensor_data())
     
     
-    s, duration = trajectory_factory.make(start_pos, stop_pos, SPEED)
+    s, duration = trajectory_factory.make(start_pos_ellipsoid, stop_pos, SPEED)
     
     sender = TrajectorySender(s, duration, setpoint_sender)
     sender.start()
@@ -116,13 +109,14 @@ def fly_waypoints(drone: Drone, sensors: SensorSynchronizer,
     log("fly_waypoints")
 
     # switch to offboard mode
-    current_pos = read_drone_position_ellipsoid(sensors)
-    setpoint_sender.setpoint = ellipsoid_to_amsl(current_pos)
+    sensor_data: SensorData = sensors.sensor_data()
+    current_pos_ellipsoid = read_lla(sensor_data)
+    setpoint_sender.setpoint = ellipsoid_to_amsl(current_pos_ellipsoid)
+    setpoint_sender.yaw = read_heading(sensor_data)
     log("sleeping for 5 seconds")
     sleep(5)
     log("switching to offboard mode")
     drone.set_mode(FlightMode.OFFBOARD)
-    sleep(3)
 
     waypoint_names = [
         "square center", "north", "east", "south", "west", "north",
