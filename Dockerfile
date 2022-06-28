@@ -27,6 +27,10 @@ RUN apt-key adv \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt /requirements.txt
+# On the Jetson (and other ARM CPUs), Ruckig must be built from source.
+# In order to compile, pybind11 and pybind11-global must be installed before running
+# pip install ruckig (note: ruckig is installed by the requirements.txt file)
+RUN pip install "pybind11==2.9.2" "pybind11-global==2.9.2"
 RUN pip install -r /requirements.txt
 
 #
