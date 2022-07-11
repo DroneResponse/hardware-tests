@@ -92,6 +92,7 @@ def main():
     
     log("move the gimbal")
     for index, (q, log_msg) in enumerate(zip(all_quaternions, log_messages)):
+        q[3] = -1*q[3]
         log(f"{log_msg} (maneuver {index + 1} of {len(all_quaternions)})")
         drone.gimbal.set_attitude(q, gimbal_manager)
         sleep(GIMBAL_WAITING_TIME)
