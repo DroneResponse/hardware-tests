@@ -67,7 +67,7 @@ def find_waypoints(drone: Drone, sensors: SensorSynchronizer, alt: float):
 
     rel_alt = sensor_data.relative_altitude.data
     current_pos = read_lla(sensor_data)
-    center = current_pos.move_ned(0.0, -25.0, 0.0)
+    center = current_pos.move_ned(-25.0, 0.0, 0.0)
 
     waypoints = find_waypoints_pure(center, rel_alt, alt)
     waypoints.append(current_pos)
