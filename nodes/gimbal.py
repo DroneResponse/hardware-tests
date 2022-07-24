@@ -76,13 +76,44 @@ def main():
     b = _quaternion_about_axis_d(45, (1, 0, 0))
     q5 = quaternion_multiply(b, a)
 
-    all_quaternions = [q1, q2, q3, q4, q5]
+    ## 6) turn right 90 degrees, look down 30 degrees, roll left 15 degrees
+    rotations = [
+        _quaternion_about_axis_d(90, (0, 0, 1)),
+        _quaternion_about_axis_d(-30, (0, 1, 0)),
+        _quaternion_about_axis_d(-15, (1, 0, 0)),
+    ]
+    q6 = rotations[0]
+    for tmp_q in rotations[1:]:
+        # if you "right" multiply the next quaternion, it means the axis of rotation is described by the mobile frame
+        q6 = quaternion_multiply(q6, tmp_q)
+    
+
+    ## 7) use quaternion_from_euler method for 90 degrees right, 30 degrees down, 15 degrees left roll
+    q7_angles = -15, -30, 90
+    q7_angles = [math.radians(a) for a in q7_angles]
+    q7 = quaternion_from_euler(*q7_angles)
+
+    ## 8) turn right 90 degrees, look down 30 degrees, roll left 15 degrees using left quaternion multiplication
+    # when the next quaternion is on the left, it means the axis of rotation is described in the motionless starting frame
+    rotations8 = [
+        _quaternion_about_axis_d(90, (0, 0, 1)),
+        _quaternion_about_axis_d(-15, (0, 1, 0)),
+        _quaternion_about_axis_d(30, (1, 0, 0)),
+    ]
+    q8 = rotations8[0]
+    for tmp_q in rotations8[1:]:
+        q8 = quaternion_multiply(tmp_q, q8)
+
+    all_quaternions = [q1, q2, q3, q4, q5, q6, q7, q8]
     log_messages = [
         "roll gimbal right 40 degrees (rotate around the front axis)",
         "tilt gimbal up 90 degrees (rotate around the right axis)",
         "turn gimbal right 90 degrees (rotate around the down axis)",
         "turn gimbal right 90 degrees and look down 45 degrees",
         "turn gimbal left 90 degrees and look up 45 degrees",
+        "with quaternion right multiplication turn right 90 degrees, look down 30 degrees, roll left 15 degrees",
+        "with quaternion_from_euler turn right 90 degrees, look down 30 degrees, roll left 15 degrees",
+        "with quaternion left multiplication turn right 90 degrees, look down 30 degrees, roll left 15 degrees",
     ]
 
 
