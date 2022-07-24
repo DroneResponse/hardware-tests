@@ -29,7 +29,7 @@ from pymavlink import mavutil
 
 from dr_hardware_tests import Drone, SensorSynchronizer, SensorMeta
 from dr_hardware_tests import sleep, start_drone_io
-from tf.transformations import quaternion_from_euler, quaternion_about_axis, quaternion_multiply
+from tf.transformations import quaternion_from_euler, quaternion_about_axis, quaternion_multiply, euler_from_quaternion
 from pymavlink.dialects.v20 import common as mavlink2
 
 
@@ -68,7 +68,7 @@ def main():
     ## 4) look right 90 degrees and look down 45 degrees
     a = _quaternion_about_axis_d(90, (0, 0, 1))
     b = _quaternion_about_axis_d(45, (1, 0, 0))
-    # this rotates a then b
+    # this rotates by a then b
     q4 = quaternion_multiply(b, a)
 
     ## 5) look left 90 degrees then look up 45 degrees
@@ -92,7 +92,11 @@ def main():
     
     log("move the gimbal")
     for index, (q, log_msg) in enumerate(zip(all_quaternions, log_messages)):
-        q[3] = -1*q[3]
+        # The next 3 lines fix the quaternion so it works with the SD-HX10 gimbal. Remove this fix to use with gazebo
+        euler_values = euler_from_quaternion(q)
+        euler_values = [-1.0 * angle for angle in euler_values]
+        q = quaternion_from_euler(*euler_values)
+        
         log(f"{log_msg} (maneuver {index + 1} of {len(all_quaternions)})")
         drone.gimbal.set_attitude(q, gimbal_manager)
         sleep(GIMBAL_WAITING_TIME)
