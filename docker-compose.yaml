@@ -3,7 +3,6 @@ services:
   roscore:
     build: ./roscore/
     command: stdbuf -o L roscore
-    restart: always
 
   mavros:
     build: ./mavros/
@@ -11,7 +10,6 @@ services:
       - roscore
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
-    restart: always
 
   arm:
     build: .
