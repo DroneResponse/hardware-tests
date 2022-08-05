@@ -53,14 +53,15 @@ def main():
 
     log("waiting for drone to arm")
     sensors.await_condition(is_armed, 30)
+    log("armed")
+    log("idling for 8 seconds")
+    sleep(8)
 
-    t = enter_offboard_mode(drone, sensors)
-
+    enter_offboard_mode(drone, sensors)
     log("starting RC failsafe trigger")
     start_RC_failsafe(sensors)
-
-    pause_time = max(9.5 - t, 5)
-    sleep(pause_time)  #remain armed for about 10 sec (time since the drone armed)
+    log("idling in offboard mode for 2 seconds")
+    sleep(2)
 
     targ_alt = drone.read_takeoff_alt()
     log("sending takeoff command")
