@@ -2,12 +2,16 @@ version: "3"
 services:
   roscore:
     build: ./roscore/
+    volumes:
+      - "./logs/roscore:/root/.ros/"
     command: stdbuf -o L roscore
 
   mavros:
     build: ./mavros/
     depends_on:
       - roscore
+    volumes:
+      - "./logs/mavros:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
 
@@ -16,6 +20,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/arm:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "arm.py"]
@@ -25,6 +31,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/box:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "box.py"]
@@ -34,6 +42,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/geofence:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "geofence.py"]
@@ -43,6 +53,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/gimbal:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "gimbal.py"]
@@ -52,6 +64,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/hover:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "hover.py"]
@@ -63,6 +77,8 @@ services:
       - mavros
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
+    volumes:
+      - "./logs/indoor_sensors:/root/.ros/"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "indoor_sensors.py"]
 
   rc_failsafe:
@@ -70,6 +86,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/rc_failsafe:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "rc_failsafe.py"]
@@ -79,6 +97,8 @@ services:
     depends_on:
       - roscore
       - mavros
+    volumes:
+      - "./logs/sensors:/root/.ros/"
     environment:
       - "ROS_MASTER_URI=http://roscore:11311"
     command: ["stdbuf", "--output=L", "rosrun", "dr_hardware_tests", "sensors.py"]
@@ -94,4 +114,5 @@ services:
       - ./nodes:/opt/ros/noetic/lib/dr_hardware_tests
       - ./src/dr_hardware_tests/:/opt/ros/noetic/lib/python3/dist-packages/dr_hardware_tests
       - ./launch:/opt/ros/noetic/share/dr_hardware_tests/launch
+      - "./logs/dev_test:/root/.ros/"
     command: ["stdbuf", "--output=L", "bash"]
